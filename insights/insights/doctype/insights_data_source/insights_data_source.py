@@ -23,7 +23,7 @@ from .sources.postgresql import PostgresDatabase
 from .sources.mssql import MSSQLDatabase
 from .sources.query_store import QueryStore
 from .sources.sqlite import SQLiteDB
-
+import pyodbc
 
 class InsightsDataSourceDocument:
     def before_insert(self):
@@ -31,7 +31,33 @@ class InsightsDataSourceDocument:
             frappe.throw("Only one site database can be configured")
 
     def before_save(self: "InsightsDataSource"):
-        self.status = "Active" if self.test_connection() else "Inactive"
+        driver = "{ODBC Driver 17 for SQL Server}"
+        server = self.host
+        database = self.database_name
+        username = self.username
+        password = self.get_password("password")
+
+        # Create the connection string
+        connection_string = f"DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password}"
+        if self.connection_string:
+            connection_string = connection_string
+        # Establish a connection
+        connection = pyodbc.connect(connection_string)
+        print("Connection successful!")
+
+        # Create a cursor object
+        # cursor = connection.cursor()
+        #
+        # # Write your SQL query
+        # use_db = f"""USE {database};"""
+        # cursor.execute(use_db)
+        #
+        # data = f"""SELECT TOP 100 * FROM {dbName};"""
+        # cursor.execute(data)
+        #
+        # results = cursor.fetchall()
+
+        # self.status = "Active" if self.test_connection() else "Inactive"
 
     def on_trash(self):
         if self.is_site_db:
@@ -225,7 +251,7 @@ class InsightsDataSource(InsightsDataSourceDocument, InsightsDataSourceClient, D
 
         if self.database_type == "PostgreSQL":
             return PostgresDatabase(**conn_args)
-        
+
         if self.database_type == "MSSQL":
             return MSSQLDatabase(**conn_args)
 
@@ -312,3 +338,4 @@ def get_data_source_schema(data_source):
             }
         )
     return schema
+

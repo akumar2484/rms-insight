@@ -1,5 +1,4 @@
 import re
-
 import frappe
 from sqlalchemy import column as Column
 from sqlalchemy import inspect
@@ -7,7 +6,7 @@ from sqlalchemy import select as Select
 from sqlalchemy import table as Table
 from sqlalchemy import text
 from sqlalchemy.engine.base import Connection
-
+import pyodbc
 from insights.insights.query_builders.mssql.builder import MSSQLQueryBuilder
 
 from .base_database import BaseDatabase
@@ -98,28 +97,41 @@ class MSSQLTableFactory:
 
 class MSSQLDatabase(BaseDatabase):
     def __init__(self, **kwargs):
-        connect_args = {"connect_timeout": 1}
+        # connect_args = {"connect_timeout": 1}
+        #
+        # self.data_source = kwargs.pop("data_source")
+        # if connection_string := kwargs.pop("connection_string", None):
+        #     self.engine = get_sqlalchemy_engine(
+        #         connection_string=connection_string, connect_args=connect_args
+        #     )
+        # else:
+        #     self.engine = get_sqlalchemy_engine(
+        #         dialect="mssql",
+        #         driver="{ODBC Driver 17 for SQL Server}",
+        #         username=kwargs.pop("username"),
+        #         password=kwargs.pop("password"),
+        #         database=kwargs.pop("database_name"),
+        #         host=kwargs.pop("host"),
+        #         port=kwargs.pop("port"),
+        #         # extra="TrustServerCertificate=yes;DRIVER={ODBC Driver 17 for SQL Server}",
+        #         connect_args=connect_args,
+        #     )
+        # self.query_builder: MSSQLQueryBuilder = MSSQLQueryBuilder(self.engine)
+        # self.table_factory: MSSQLTableFactory = MSSQLTableFactory(self.data_source)
 
-        self.data_source = kwargs.pop("data_source")
-        if connection_string := kwargs.pop("connection_string", None):
-            self.engine = get_sqlalchemy_engine(
-                connection_string=connection_string, connect_args=connect_args
-            )
-        else:
-            self.engine = get_sqlalchemy_engine(
-                dialect="mssql",
-                driver="pyodbc",
-                username=kwargs.pop("username"),
-                password=kwargs.pop("password"),
-                database=kwargs.pop("database_name"),
-                host=kwargs.pop("host"),
-                port=kwargs.pop("port"),
-                extra="TrustServerCertificate=yes;DRIVER={ODBC Driver 17 for SQL Server}",
-                connect_args=connect_args,
-            )
-        self.query_builder: MSSQLQueryBuilder = MSSQLQueryBuilder(self.engine)
-        self.table_factory: MSSQLTableFactory = MSSQLTableFactory(self.data_source)
+        driver = "{ODBC Driver 17 for SQL Server}"
+        server = kwargs.pop("host")+","+str(kwargs.pop("port"))
+        database = kwargs.pop("database_name")
+        username = kwargs.pop("username")
+        password = kwargs.pop("password")
 
+        # Create the connection string
+        connection_string = f"DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password}"
+        # if connection_string := kwargs.pop("connection_string", None):
+        #     connection_string = connection_string
+        # Establish a connection
+        connection = pyodbc.connect(connection_string)
+        print("Connection successful!")
     def sync_tables(self, tables=None, force=False):
         with self.engine.begin() as connection:
             self.table_factory.sync_tables(connection, tables, force)
@@ -143,3 +155,4 @@ class MSSQLDatabase(BaseDatabase):
             query = query.where(Column(column).like(f"%{search_text}%"))
         query = self.compile_query(query)
         return self.execute_query(query, pluck=True)
+
