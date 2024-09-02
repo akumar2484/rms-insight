@@ -9,14 +9,14 @@ const emit = defineEmits(['submit'])
 const database = reactive({})
 const form = ref(null)
 const fields = computed(() => [
-	{ name: 'title', label: 'Title', type: 'text', placeholder: 'My Database', required: true },
+	{ name: 'title', label: 'Title', type: 'text', placeholder: 'My Database', required: true, defaultValue: 'RMS Report Database', },
 	{
 		label: 'Host',
 		name: 'host',
 		type: 'text',
 		placeholder: 'localhost',
 		required: !database.connection_string,
-		defaultValue: '13.232.21.0',
+		defaultValue: '13.232.21.0\KSSPL_DEV',
 	},
 	{
 		label: 'Port',
@@ -32,7 +32,7 @@ const fields = computed(() => [
 		type: 'text',
 		placeholder: 'DB_1267891',
 		required: !database.connection_string,
-		defaultValue: 'PCSRoad_Dev',
+		defaultValue: 'PCSROAD_Report',
 	},
 	{
 		label: 'Username',
@@ -40,7 +40,7 @@ const fields = computed(() => [
 		type: 'text',
 		placeholder: 'read_only_user',
 		required: !database.connection_string,
-		defaultValue: 'kaladi',
+		defaultValue: 'pcsreport',
 	},
 	{
 		label: 'Password',
@@ -48,7 +48,7 @@ const fields = computed(() => [
 		type: 'password',
 		placeholder: '**********',
 		required: !database.connection_string,
-		defaultValue: 'Kaladi@12345',
+		defaultValue: 'ohKLMm37r0cLYfX77O75',
 	},
 	{ label: 'Use secure connection (SSL)?', name: 'useSSL', type: 'checkbox' },
 ])
@@ -104,7 +104,7 @@ const testConnection = async () => {
 
 const creating = ref(false)
 const createNewDatabase = async () => {
-	database['type'] = 'PostgreSQL'
+	database['type'] = 'MSSQL'
 	creating.value = true
 	await sources.create({ database })
 	creating.value = false
@@ -123,7 +123,7 @@ const createNewDatabase = async () => {
 	<Input
 		v-model="database.connection_string"
 		label="Connection String"
-		placeholder="mssql://{username}:{password}@{server}/{database}"
+		placeholder="mssql+pyodbc://{username}:{password}@{server}/{database}"
 	/>
 
 	<div class="mt-6 flex justify-between pt-2">

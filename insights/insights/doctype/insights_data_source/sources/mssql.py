@@ -51,10 +51,31 @@ class MSSQLTableFactory:
 
     def get_db_tables(self, table_names=None):
         inspector = inspect(self.db_conn)
-        tables = set(inspector.get_table_names()) | set(inspector.get_foreign_table_names())
+        # NEW CODE
+        # Retrieve all regular table names
+        tables = set(inspector.get_table_names())
+        # Retrieve foreign key information and collect foreign tables
+        foreign_tables = set()
+        for table in tables:
+        # Get foreign keys of the current table
+            foreign_keys = inspector.get_foreign_keys(table)
+        # Add the referred tables from the foreign keys
+            for fk in foreign_keys:
+                referred_table = fk.get('referred_table')
+                if referred_table:
+                    foreign_tables.add(referred_table)
+        # Combine regular tables and foreign tables
+        all_tables = tables | foreign_tables
+        # If specific table names are provided, filter the combined set
         if table_names:
-            tables = [table for table in tables if table in table_names]
-        return [self.get_table(table) for table in tables if not self.should_ignore(table)]
+            all_tables = {table for table in all_tables if table in table_names}    
+        # Retrieve and return the table objects, ignoring specified tables
+        return [self.get_table(table) for table in all_tables if not self.should_ignore(table)]            
+        # OLD CODE            
+        # tables = set(inspector.get_table_names()) | set(inspector.get_foreign_table_names())
+        # if table_names:
+        #     tables = [table for table in tables if table in table_names]
+        # return [self.get_table(table) for table in tables if not self.should_ignore(table)]
 
     def should_ignore(self, table_name):
         return any(re.match(pattern, table_name) for pattern in IGNORED_TABLES)
@@ -97,41 +118,30 @@ class MSSQLTableFactory:
 
 class MSSQLDatabase(BaseDatabase):
     def __init__(self, **kwargs):
-        # connect_args = {"connect_timeout": 1}
-        #
-        # self.data_source = kwargs.pop("data_source")
-        # if connection_string := kwargs.pop("connection_string", None):
-        #     self.engine = get_sqlalchemy_engine(
-        #         connection_string=connection_string, connect_args=connect_args
-        #     )
-        # else:
-        #     self.engine = get_sqlalchemy_engine(
-        #         dialect="mssql",
-        #         driver="{ODBC Driver 17 for SQL Server}",
-        #         username=kwargs.pop("username"),
-        #         password=kwargs.pop("password"),
-        #         database=kwargs.pop("database_name"),
-        #         host=kwargs.pop("host"),
-        #         port=kwargs.pop("port"),
-        #         # extra="TrustServerCertificate=yes;DRIVER={ODBC Driver 17 for SQL Server}",
-        #         connect_args=connect_args,
-        #     )
-        # self.query_builder: MSSQLQueryBuilder = MSSQLQueryBuilder(self.engine)
-        # self.table_factory: MSSQLTableFactory = MSSQLTableFactory(self.data_source)
-
-        driver = "{ODBC Driver 17 for SQL Server}"
-        server = kwargs.pop("host")+","+str(kwargs.pop("port"))
-        database = kwargs.pop("database_name")
-        username = kwargs.pop("username")
-        password = kwargs.pop("password")
-
-        # Create the connection string
-        connection_string = f"DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password}"
-        # if connection_string := kwargs.pop("connection_string", None):
-        #     connection_string = connection_string
-        # Establish a connection
-        connection = pyodbc.connect(connection_string)
-        print("Connection successful!")
+        connect_args = {"connect_timeout": 1}
+        
+        self.data_source = kwargs.pop("data_source")
+        if connection_string := kwargs.pop("connection_string", None):
+            print('In if condition')
+            print('COnnection string ', connection_string)
+            self.engine = get_sqlalchemy_engine(
+                connection_string=connection_string, connect_args=connect_args
+            )
+        else:
+            print('In else condition')
+            self.engine = get_sqlalchemy_engine(
+                dialect="mssql",
+                driver="pyodbc{ODBC Driver 17 for SQL Server}",
+                username=kwargs.pop("username"),
+                password=kwargs.pop("password"),
+                database=kwargs.pop("database_name"),
+                host=kwargs.pop("host"),
+                port=kwargs.pop("port"),
+                # extra="TrustServerCertificate=yes;DRIVER={ODBC Driver 17 for SQL Server}",
+                connect_args=connect_args,
+            )
+        self.query_builder: MSSQLQueryBuilder = MSSQLQueryBuilder(self.engine)
+        self.table_factory: MSSQLTableFactory = MSSQLTableFactory(self.data_source)
     def sync_tables(self, tables=None, force=False):
         with self.engine.begin() as connection:
             self.table_factory.sync_tables(connection, tables, force)

@@ -31,33 +31,8 @@ class InsightsDataSourceDocument:
             frappe.throw("Only one site database can be configured")
 
     def before_save(self: "InsightsDataSource"):
-        driver = "{ODBC Driver 17 for SQL Server}"
-        server = self.host
-        database = self.database_name
-        username = self.username
-        password = self.get_password("password")
+        self.status = "Active" if self.test_connection() else "Inactive"        
 
-        # Create the connection string
-        connection_string = f"DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password}"
-        if self.connection_string:
-            connection_string = connection_string
-        # Establish a connection
-        connection = pyodbc.connect(connection_string)
-        print("Connection successful!")
-
-        # Create a cursor object
-        # cursor = connection.cursor()
-        #
-        # # Write your SQL query
-        # use_db = f"""USE {database};"""
-        # cursor.execute(use_db)
-        #
-        # data = f"""SELECT TOP 100 * FROM {dbName};"""
-        # cursor.execute(data)
-        #
-        # results = cursor.fetchall()
-
-        # self.status = "Active" if self.test_connection() else "Inactive"
 
     def on_trash(self):
         if self.is_site_db:
@@ -260,8 +235,8 @@ class InsightsDataSource(InsightsDataSourceDocument, InsightsDataSourceClient, D
     def test_connection(self, raise_exception=False):
         try:
             return self._db.test_connection()
-        except DatabaseConnectionError:
-            print('in database connction error ', de)
+        except DatabaseConnectionError as dce:
+            print('in database connction error ', dce)
             return False
         except Exception as e:
             frappe.log_error("Testing Data Source connection failed", e)

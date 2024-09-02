@@ -1,5 +1,5 @@
 <template>
-	<header class="sticky top-0 z-10 flex items-center justify-between bg-white px-5 py-2.5">
+	<!-- <header class="sticky top-0 z-10 flex items-center justify-between bg-white px-5 py-2.5">
 		<PageBreadcrumbs
 			class="h-7"
 			:items="[
@@ -7,9 +7,66 @@
 				{ label: dataSource.doc.title },
 			]"
 		/>
-	</header>
+	</header> -->
 
-	<div class="mb-4 flex h-full flex-col gap-2 overflow-auto px-4">
+	<div class="mt-8 flex items-center justify-between">
+		<div class="flex items-center gap-4">
+			<div class="flex gap-2 overflow-visible py-1">
+				<FormControl placeholder="Search by Title" v-model="searchQuery" :debounce="300">
+					<template #prefix>
+						<SearchIcon class="h-4 w-4 text-gray-500" />
+					</template>
+				</FormControl>
+			</div>
+		</div>
+		<div>
+			<Button
+				variant="outline"
+				iconLeft="link-2"
+				@click="router.push(`/data-source/${dataSource.doc.name}/relationships`)"
+			>
+				Manage Relationships
+			</Button>
+			<Dropdown
+				placement="left"
+				:button="{ icon: 'more-horizontal', variant: 'outline' }"
+				:options="dropdownActions"
+			/>
+		</div>
+	</div>
+
+	<div class="mt-6 flex items-stretch justify-between gap-4">
+		<div class="md:w-full">
+			<div
+				class="relative max-h-[500px] overflow-y-auto rounded-lg border border-blue-200 bg-white p-4 sm:rounded-lg"
+			>
+				<ListView
+					:columns="tableListColumns"
+					:rows="filteredTableList"
+					:row-key="'name'"
+					:options="{
+						showTooltip: false,
+						getRowRoute: (table) => ({
+							name: 'DataSourceTable',
+							params: { name: dataSource.doc.name, table: table.name },
+						}),
+						emptyState: {
+							title: 'No tables.',
+							description: 'No tables to display.',
+							button: {
+								label: 'Sync Tables',
+								variant: 'solid',
+								onClick: syncTables,
+							},
+						},
+					}"
+				>
+				</ListView>
+			</div>
+		</div>
+	</div>
+
+	<!-- <div class="mb-4 flex h-full flex-col gap-2 overflow-auto px-4">
 		<div class="flex gap-2 overflow-visible py-1">
 			<FormControl placeholder="Search by Title" v-model="searchQuery" :debounce="300">
 				<template #prefix>
@@ -51,7 +108,7 @@
 			}"
 		>
 		</ListView>
-	</div>
+	</div> -->
 
 	<Dialog
 		v-model="showDeleteDialog"
