@@ -148,7 +148,10 @@ class MSSQLDatabase(BaseDatabase):
 
     def get_table_preview(self, table, limit=100):
         data = self.execute_query(f"""SELECT TOP {limit} * FROM [{table}]""", cached=True)
-        length = self.execute_query(f'''SELECT COUNT(*) FROM [{table}]''', cached=True)[0][0]
+        if (self.engine.url.get_backend_name() == 'mssql'):
+            length = self.execute_query(f'''SELECT COUNT(*) AS total_count FROM [{table}]''', cached=True)[0][0]
+        else:
+            length = self.execute_query(f'''SELECT COUNT(*) FROM [{table}]''', cached=True)[0][0]
         return {
             "data": data or [],
             "length": length or 0,

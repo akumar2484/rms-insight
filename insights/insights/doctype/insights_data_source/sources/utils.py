@@ -277,6 +277,10 @@ def add_limit_to_sql(sql, limit=1000):
     stripped_sql = str(sql).strip().rstrip(";")
     return f"WITH limited AS ({stripped_sql}) SELECT * FROM limited LIMIT {limit};"
 
+def add_limit_to_mssql(sql, limit=1000):
+    stripped_sql = str(sql).strip().rstrip(";")
+    return f"WITH limited AS ({stripped_sql}) SELECT * FROM limited;"
+
 
 def replace_query_tables_with_cte(sql, data_source, dialect=None):
     try:

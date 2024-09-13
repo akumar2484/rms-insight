@@ -13,6 +13,7 @@ from insights.utils import ResultColumn
 
 from .utils import (
     add_limit_to_sql,
+    add_limit_to_mssql,
     cache_results,
     compile_query,
     execute_and_log,
@@ -116,6 +117,8 @@ class BaseDatabase(Database):
         query_name=None,
         log_errors=True,
     ):
+        print('$$$$$$$ In Execute Query $$$$$$$$')
+        print('SQL ', sql)
         if sql is None:
             return []
         if isinstance(sql, str) and not sql.strip():
@@ -189,7 +192,10 @@ class BaseDatabase(Database):
         # there's no use case to view more than 500 rows in the UI
         # TODO: while exporting as csv, we can remove this limit
         max_rows = frappe.db.get_single_value("Insights Settings", "query_result_limit") or 500
-        return add_limit_to_sql(sql, max_rows)
+        if (self.engine.url.get_backend_name() == 'mssql'):
+            return add_limit_to_mssql(sql, max_rows)
+        else:
+            return add_limit_to_sql(sql, max_rows)  
 
     def validate_native_sql(self, query):
         select_or_with = str(query).strip().lower().startswith(("select", "with"))

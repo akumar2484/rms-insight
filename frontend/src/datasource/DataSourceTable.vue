@@ -1,83 +1,87 @@
 <template>
-	<header class="sticky top-0 z-10 flex items-center bg-white px-5 py-2.5">
-		<PageBreadcrumbs
-			class="h-7"
-			:items="[
-				{
-					label: 'Data Sources',
-					href: '/data-source',
-					route: { path: '/data-source' },
-				},
-				{
-					label: props.name,
-					route: { path: `/data-source/${props.name}` },
-				},
-				{
-					label: dataSourceTable.doc?.label || props.table,
-				},
-			]"
-		/>
-		<div v-if="dataSourceTable.doc" class="ml-2 flex items-center space-x-2.5">
-			<Badge variant="subtle" :theme="hidden ? 'gray' : 'green'" size="md">
-				{{ hidden ? 'Disabled' : 'Enabled' }}
-			</Badge>
-			<Dropdown
-				placement="left"
-				:button="{
-					icon: 'more-horizontal',
-					variant: 'ghost',
-				}"
-				:options="[
-					{
-						label: hidden ? 'Enable' : 'Disable',
-						icon: hidden ? 'eye' : 'eye-off',
-						onClick: () => (hidden = !hidden),
-					},
-					{
-						label: 'Sync Table',
-						icon: 'refresh-cw',
-						onClick: () => dataSourceTable.sync(),
-					},
-					{
-						label: 'Add Link',
-						icon: 'link',
-						onClick: () => (addLinkDialog = true),
-					},
-				]"
-			/>
-		</div>
-	</header>
-	<div class="flex flex-1 flex-col overflow-hidden bg-white px-6 py-2">
-		<div
-			v-if="
-				dataSourceTable.doc &&
-				dataSourceTable.doc.columns &&
-				dataSourceTable.rows?.data &&
-				!dataSourceTable.syncing
-			"
-			class="flex flex-1 flex-col overflow-hidden"
-		>
-			<!-- <div class="flex h-6 flex-shrink-0 space-x-1 text-sm font-light text-gray-600">
-				{{ dataSourceTable.doc.columns.length }} Columns -
-				{{ dataSourceTable.rows.length }} Rows
-			</div> -->
-			<div class="flex flex-1 overflow-auto">
-				<Grid :header="true" :rows="dataSourceTable.rows.data">
-					<template #header>
-						<DataSourceTableColumnHeader
-							:columns="dataSourceTable.doc.columns"
-							@update-column-type="dataSourceTable.updateColumnType"
-						/>
-					</template>
-				</Grid>
+	<div class="mt-6 flex items-stretch justify-between gap-4">
+		<div class="md:w-full">
+			<div
+				class="relative max-h-[500px] overflow-y-auto rounded-lg border border-blue-200 bg-white p-4 sm:rounded-lg"
+			>
+				<PageBreadcrumbs
+					class="h-7"
+					:items="[
+						{
+							label: 'Data Sources',
+							href: '/data-source',
+							route: { path: '/data-source' },
+						},
+						{
+							label: props.name,
+							route: { path: `/data-source/${props.name}` },
+						},
+						{
+							label: dataSourceTable.doc?.label || props.table,
+						},
+					]"
+				/>
+				<div v-if="dataSourceTable.doc" class="ml-2 flex items-center space-x-2.5">
+					<Badge variant="subtle" :theme="hidden ? 'gray' : 'green'" size="md">
+						{{ hidden ? 'Disabled' : 'Enabled' }}
+					</Badge>
+					<Dropdown
+						placement="left"
+						:button="{
+							icon: 'more-horizontal',
+							variant: 'ghost',
+						}"
+						:options="[
+							{
+								label: hidden ? 'Enable' : 'Disable',
+								icon: hidden ? 'eye' : 'eye-off',
+								onClick: () => (hidden = !hidden),
+							},
+							{
+								label: 'Sync Table',
+								icon: 'refresh-cw',
+								onClick: () => dataSourceTable.sync(),
+							},
+							{
+								label: 'Add Link',
+								icon: 'link',
+								onClick: () => (addLinkDialog = true),
+							},
+						]"
+					/>
+				</div>
+				<div
+					v-if="
+						dataSourceTable.doc &&
+						dataSourceTable.doc.columns &&
+						dataSourceTable.rows?.data &&
+						!dataSourceTable.syncing
+					"
+					class="flex flex-1 flex-col overflow-hidden"
+				>
+					<!-- <div class="flex h-6 flex-shrink-0 space-x-1 text-sm font-light text-gray-600">
+						{{ dataSourceTable.doc.columns.length }} Columns -
+						{{ dataSourceTable.rows.length }} Rows
+					</div> -->
+					<div class="flex flex-1 overflow-auto">
+						<Grid :header="true" :rows="dataSourceTable.rows.data">
+							<template #header>
+								<DataSourceTableColumnHeader
+									:columns="dataSourceTable.doc.columns"
+									@update-column-type="dataSourceTable.updateColumnType"
+								/>
+							</template>
+						</Grid>
+					</div>
+				</div>
+				<div
+					v-else
+					class="mt-2 flex h-full w-full flex-col items-center justify-center rounded bg-gray-50"
+				>
+					<LoadingIndicator class="mb-2 w-8 text-gray-500" />
+					<div class="text-lg text-gray-600">Syncing columns from database...</div>
+				</div>
 			</div>
-		</div>
-		<div
-			v-else
-			class="mt-2 flex h-full w-full flex-col items-center justify-center rounded bg-gray-50"
-		>
-			<LoadingIndicator class="mb-2 w-8 text-gray-500" />
-			<div class="text-lg text-gray-600">Syncing columns from database...</div>
 		</div>
 	</div>
 
