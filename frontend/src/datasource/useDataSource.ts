@@ -24,6 +24,8 @@ function useDataSource(name: string) {
 	async function fetchTables() {
 		const promises = [resource.get_tables.submit(), resource.get_queries.submit()]
 		const responses = await Promise.all(promises)
+		console.log("WWWWWWWWWWWWWWWWWW",responses)
+		console.log("WWWWWWWWWWWWWWWWWW",promises)
 		tableList.value = responses[0]
 		queryList.value = responses[1]
 		dropdownOptions.value = makeDropdownOptions()
@@ -50,6 +52,7 @@ function useDataSource(name: string) {
 						label: sourceTable.label,
 						description: sourceTable.table,
 						data_source: name,
+						//table_type:sourceTable.table_type,
 					}
 				})
 		)
@@ -70,6 +73,7 @@ function useDataSource(name: string) {
 					value: table.table,
 					description: table.table,
 					data_source: name,
+					//table_type: table.table_type,
 				})
 			})
 

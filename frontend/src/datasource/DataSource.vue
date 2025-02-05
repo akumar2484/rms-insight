@@ -8,6 +8,72 @@
 			]"
 		/>
 	</header> -->
+	<!-- <template>Added Print format -->
+  <div>
+    <!-- Button to Open Print Format Builder -->
+    <button
+      @click="showPrintBuilder = true"
+      class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+    >
+      Customize Print Format
+    </button>
+
+    <!-- Print Format Builder Modal -->
+    <Modal v-if="showPrintBuilder" @close="showPrintBuilder = false">
+      <template #header>
+        <h3>Print Format Builder</h3>
+      </template>
+
+      <template #body>
+        <div>
+          <!-- Column Selection -->
+          <h4 class="font-bold mb-2">Select Columns:</h4>
+          <div v-for="column in availableColumns" :key="column.key" class="mb-1">
+            <label>
+              <input
+                type="checkbox"
+                v-model="selectedColumns"
+                :value="column.key"
+              />
+              {{ column.label }}
+            </label>
+          </div>
+
+          <!-- Custom Header -->
+          <h4 class="font-bold mt-4 mb-2">Custom Header:</h4>
+          <textarea
+            v-model="customHeader"
+            class="w-full border rounded p-2"
+            placeholder="Enter custom header..."
+          ></textarea>
+
+          <!-- Custom Footer -->
+          <h4 class="font-bold mt-4 mb-2">Custom Footer:</h4>
+          <textarea
+            v-model="customFooter"
+            class="w-full border rounded p-2"
+            placeholder="Enter custom footer..."
+          ></textarea>
+        </div>
+      </template>
+
+      <template #footer>
+        <button
+          @click="generatePrintPreview"
+          class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+        >
+          Preview & Print
+        </button>
+        <button
+          @click="showPrintBuilder = false"
+          class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+        >
+          Cancel
+        </button>
+      </template>
+    </Modal>
+  </div>
+<!-- </template> -->
 
 	<div class="mt-8 flex items-center justify-between">
 		<div class="flex items-center gap-4">
@@ -17,6 +83,18 @@
 						<SearchIcon class="h-4 w-4 text-gray-500" />
 					</template>
 				</FormControl>
+				<div>	
+					<!-- <select v-model="searchType">
+  						<option value="all">All</option>
+ 						<option value="table">Table</option>
+				  		<option value="view">View</option>
+					</select> -->
+					<select v-model="searchType" class="border p-2 rounded">
+    					<option v-for="option in options" :key="option.value" :value="option.value">
+       				 		{{ option.label }}
+   						 </option>
+					</select>
+				</div>
 			</div>
 		</div>
 		<div>
@@ -141,6 +219,7 @@ import { SearchIcon } from 'lucide-vue-next'
 import { computed, inject, provide, ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import useDataSource from './useDataSource'
+// import printReport from './print_report'
 
 const props = defineProps({
 	name: {
@@ -154,10 +233,30 @@ const dataSource = useDataSource(props.name)
 provide('dataSource', dataSource)
 dataSource.fetchTables()
 
+const options = ref([
+    { value: 'all', label: 'All' },
+    { value: 'table', label: 'Table' },
+    { value: 'view', label: 'View' },
+]);
+
 const searchQuery = ref('')
+const searchType = ref('all');
 const filteredTableList = computed(() => {
-	const tableList = dataSource.tableList.filter((t) => !t.is_query_based)
+	let tableList = dataSource.tableList.filter((t) => !t.is_query_based)
 	if (!tableList.length) return []
+	if (searchType.value !== 'all') {
+		console.log("Hiiiiiiiiiiiiiiiiiii",tableList,searchType.value)
+        tableList = tableList.filter((table) =>
+            searchType.value === 'table' ? table.table_type === 'Table' : table.table_type === 'View'
+        );
+    }
+	if (searchType.value === 'view') {
+		console.log("In view............",tableList,searchType.value)
+        tableList = tableList.filter((table) => table.table_type === 'View'); // Show only views
+    } else if (searchType.value === 'table') {
+		console.log("In table............",tableList,searchType.value)
+        tableList = tableList.filter((table) => table.table_type === 'Table'); // Show only tables
+    }
 	if (!searchQuery.value) return tableList
 	return tableList.filter((table) => {
 		return table.label.toLowerCase().includes(searchQuery.value.toLowerCase())
@@ -206,4 +305,6 @@ const tableListColumns = [
 		},
 	},
 ]
+
+
 </script>

@@ -87,6 +87,7 @@ class InsightsDataSourceClient:
                 "hidden",
                 "is_query_based",
                 "data_source",
+                "table_type",
             ],
             order_by="hidden asc, label asc",
         )

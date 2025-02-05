@@ -110,6 +110,7 @@ def test_database_connection(database):
 
 @frappe.whitelist()
 def add_database(database):
+    print("database----->",database)
     track("add_data_source")
     data_source = get_new_datasource(database)
     data_source.save()

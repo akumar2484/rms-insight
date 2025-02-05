@@ -8,6 +8,7 @@ export type GetTableParams = {
 	name: string
 	table: string
 	data_source: string
+	data_type:string
 }
 
 async function useDataSourceTable(params: GetTableParams) {
@@ -37,6 +38,7 @@ async function useDataSourceTable(params: GetTableParams) {
 				table: doc.value.table,
 				table_label: doc.value.label,
 				data_source: doc.value.data_source,
+				table_type: doc.value.table_type,
 			}
 		})
 	})

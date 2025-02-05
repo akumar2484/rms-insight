@@ -65,6 +65,7 @@ const tabbarItems = ref([
 		name: 'QueryList',
 		current: false,
 	},
+
 ])
 
 const route = useRoute()
