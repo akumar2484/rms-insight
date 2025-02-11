@@ -64,6 +64,60 @@ async function useDataSourceTable(params: GetTableParams) {
 	return table
 }
 
+export async function useDataSourceView(params: GetTableParams) {
+	const name = await getTableName(params)
+
+	const cacheStore = useCacheStore()
+	if (cacheStore.getTable(name)) {
+		return cacheStore.getTable(name)
+	}
+
+	const resource: TableResource = getDocumentResource('Insights View', name)
+	await resource.fetchIfNeeded()
+	await whenHasValue(() => resource.doc)
+
+	const doc = computed<any>({
+		get: () => resource.doc || {},
+		set: (value: any) => (resource.doc = value),
+	})
+
+	const columns = computed(() => {
+		if (!doc.value?.columns) return []
+		return doc.value.columns.map((column: any) => {
+			return {
+				column: column.column,
+				type: column.type,
+				label: column.label,
+				table: doc.value.table,
+				table_label: doc.value.label,
+				data_source: doc.value.data_source,
+			}
+		})
+	})
+
+	const table: DataSourceTable = reactive({
+		doc,
+		columns,
+		rows: computed(() => resource.getPreview.data),
+		loading: resource.loading,
+		syncing: resource.syncTable.loading,
+		sync: () => resource.syncTable.submit(),
+		fetchPreview: () => resource.getPreview.submit(),
+		updateVisibility: (hidden: boolean) => {
+			return resource.updateVisibility.submit({ hidden })
+		},
+		updateColumnType: (column: any) => {
+			return resource.update_column_type.submit({
+				column: column.column,
+				newtype: column.type,
+			})
+		},
+	})
+
+	cacheStore.setTable(name, table)
+	return table
+}
+
 const today = new Date().toISOString().split('T')[0]
 const dailyCacheKey = `insights:table-name-cache-{${today}}`
 
@@ -91,6 +145,7 @@ async function getTableName(params: GetTableParams): Promise<string> {
 }
 
 export default useDataSourceTable
+
 export type DataSourceTable = UnwrapRef<{
 	doc: any
 	columns: any[]

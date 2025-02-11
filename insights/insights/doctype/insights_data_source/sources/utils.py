@@ -10,6 +10,7 @@ import sqlparse
 from frappe.utils.data import flt
 from sqlalchemy import NullPool, create_engine
 from sqlalchemy.engine.base import Engine
+from sqlalchemy import inspect
 
 from insights.cache_utils import make_digest
 
@@ -103,6 +104,60 @@ def create_insights_table(table, force=False):
         doc.save(ignore_permissions=True)
     return doc.name
 
+
+def create_insights_view(view, force=False):
+    exists = frappe.db.exists(
+        "Insights View",
+        {
+            "data_source": view.data_source,
+            "view": view.view,
+            "is_query_based": view.is_query_based or 0,
+        },
+    )
+    doc_before = None
+    if docname := exists:
+        doc = frappe.get_doc("Insights View", docname)
+        doc_before = frappe.get_cached_doc("Insights View", docname)
+    else:
+        doc = frappe.get_doc(
+            {
+                "doctype": "Insights View",
+                "data_source": view.data_source,
+                "view": view.view,
+                "label": view.label,
+                "is_query_based": view.is_query_based or 0,
+            }
+        )
+
+    doc.label = view.label
+    if force:
+        doc.columns = []
+        doc.view_links = []
+
+    for view_link in view.view_links or []:
+        if not doc.get("view_links", view_link):
+            doc.append("view_links", view_link)
+
+    column_added = False
+    for column in view.columns or []:
+        if any(doc_column.column == column.column for doc_column in doc.columns):
+            continue
+        doc.append("columns", column)
+        column_added = True
+
+    column_removed = False
+    column_names = [c.column for c in view.columns]
+    for column in doc.columns:
+        if column.column not in column_names:
+            doc.columns.remove(column)
+            column_removed = True
+
+    version = frappe.new_doc("Version")
+    doc_changed = version.update_version_info(doc_before, doc) or column_added or column_removed
+    is_new = not exists
+    if is_new or doc_changed or force:
+        doc.save(ignore_permissions=True)
+    return doc.name
 
 def parse_sql_tables(sql: str):
     parsed = sqlparse.parse(sql)

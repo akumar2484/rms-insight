@@ -52,6 +52,9 @@ class Database:
 
     def sync_tables(self):
         raise NotImplementedError
+    
+    def sync_views(self):
+        raise NotImplementedError
 
     def get_table_columns(self):
         raise NotImplementedError
@@ -117,8 +120,6 @@ class BaseDatabase(Database):
         query_name=None,
         log_errors=True,
     ):
-        print('$$$$$$$ In Execute Query $$$$$$$$')
-        print('SQL ', sql)
         if sql is None:
             return []
         if isinstance(sql, str) and not sql.strip():

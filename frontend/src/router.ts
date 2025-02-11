@@ -76,7 +76,7 @@ const routes = [
 	{
 		props: true,
 		name: 'DataSourceTable',
-		path: '/data-source/:name/:table',
+		path: '/data-source/:name/:table/:type',
 		component: () => import('@/datasource/DataSourceTable.vue'),
 	},
 	{

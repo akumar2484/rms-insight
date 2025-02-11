@@ -1,3 +1,95 @@
+<script setup lang="jsx">
+import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
+import PageBreadcrumbs from '@/components/PageBreadcrumbs.vue'
+import { ListView } from 'frappe-ui'
+import { SearchIcon } from 'lucide-vue-next'
+import { computed, inject, provide, ref, watchEffect, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import useDataSource from './useDataSource'
+
+const props = defineProps({
+	name: {
+		type: String,
+		required: true,
+	},
+})
+
+const router = useRouter()
+const dataSource = useDataSource(props.name)
+const dropdownOptions = ref([
+	{ label: 'Tables', value: 'tables' },
+	{ label: 'Views', value: 'views' },
+])
+
+const selectedOption = ref('tables')
+
+provide('dataSource', dataSource)
+if (selectedOption.value === 'tables') {
+	dataSource.fetchTables()
+}
+
+watch(selectedOption, (newValue) => {
+	if (newValue === 'tables') {
+		dataSource.fetchTables()
+	} else if (newValue === 'views') {
+		dataSource.fetchViews()
+	}
+})
+
+const searchQuery = ref('')
+const filteredTableList = computed(() => {
+	const tableList = dataSource.tableList.filter((t) => !t.is_query_based)
+	if (!tableList.length) return []
+	if (!searchQuery.value) return tableList
+	return tableList.filter((table) => {
+		return table.label.toLowerCase().includes(searchQuery.value.toLowerCase())
+	})
+})
+
+const showDeleteDialog = ref(false)
+const dropdownActions = computed(() => {
+	return [
+		{
+			label: 'Sync Tables/Views',
+			icon: 'refresh-cw',
+			onClick: syncTables,
+		},
+		{
+			label: 'Delete',
+			icon: 'trash',
+			onClick: () => (showDeleteDialog.value = true),
+		},
+	]
+})
+
+const $notify = inject('$notify')
+function syncTables() {
+	dataSource
+		.syncTables()
+		.catch((err) => $notify({ title: 'Error Syncing Tables', variant: 'error' }))
+}
+
+watchEffect(() => {
+	if (dataSource.doc?.name) {
+		const title = dataSource.doc.title || dataSource.doc.name
+		document.title = `${title} - Frappe Insights`
+	}
+})
+
+const tableListColumns = [
+	{ label: 'Table', key: 'label' },
+	{
+		label: 'Status',
+		key: 'status',
+		getLabel: ({ row }) => (row.hidden ? 'Disabled' : 'Enabled'),
+		prefix: ({ row }) => {
+			const color = row.hidden ? 'text-gray-500' : 'text-green-500'
+			return <IndicatorIcon class={color} />
+		},
+	},
+]
+</script>
+
 <template>
 	<!-- <header class="sticky top-0 z-10 flex items-center justify-between bg-white px-5 py-2.5">
 		<PageBreadcrumbs
@@ -17,6 +109,21 @@
 						<SearchIcon class="h-4 w-4 text-gray-500" />
 					</template>
 				</FormControl>
+
+				<select
+					v-model="selectedOption"
+					id="dropdown"
+					class="h-7 rounded border border-gray-100 bg-gray-100 py-1.5 pl-2 pr-2 text-base text-gray-800 placeholder-gray-500 transition-colors hover:border-gray-200 hover:bg-gray-200 focus:border-gray-500 focus:bg-white focus:shadow-sm focus:ring-0 focus-visible:ring-2 focus-visible:ring-gray-400"
+				>
+					<option value="" disabled hidden>Select an option</option>
+					<option
+						v-for="option in dropdownOptions"
+						:key="option.value"
+						:value="option.value"
+					>
+						{{ option.label }}
+					</option>
+				</select>
 			</div>
 		</div>
 		<div>
@@ -46,15 +153,23 @@
 					:row-key="'name'"
 					:options="{
 						showTooltip: false,
-						getRowRoute: (table) => ({
-							name: 'DataSourceTable',
-							params: { name: dataSource.doc.name, table: table.name },
-						}),
+						getRowRoute: (table) => {
+							const type =
+								selectedOption && selectedOption === 'tables' ? 'table' : 'view'
+							return {
+								name: 'DataSourceTable',
+								params: {
+									name: dataSource.doc.name,
+									table: table.name,
+									type: type,
+								},
+							}
+						},
 						emptyState: {
 							title: 'No tables.',
 							description: 'No tables to display.',
 							button: {
-								label: 'Sync Tables',
+								label: 'Sync Tables/Views',
 								variant: 'solid',
 								onClick: syncTables,
 							},
@@ -132,78 +247,3 @@
 	>
 	</Dialog>
 </template>
-
-<script setup lang="jsx">
-import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
-import PageBreadcrumbs from '@/components/PageBreadcrumbs.vue'
-import { ListView } from 'frappe-ui'
-import { SearchIcon } from 'lucide-vue-next'
-import { computed, inject, provide, ref, watchEffect } from 'vue'
-import { useRouter } from 'vue-router'
-import useDataSource from './useDataSource'
-
-const props = defineProps({
-	name: {
-		type: String,
-		required: true,
-	},
-})
-
-const router = useRouter()
-const dataSource = useDataSource(props.name)
-provide('dataSource', dataSource)
-dataSource.fetchTables()
-
-const searchQuery = ref('')
-const filteredTableList = computed(() => {
-	const tableList = dataSource.tableList.filter((t) => !t.is_query_based)
-	if (!tableList.length) return []
-	if (!searchQuery.value) return tableList
-	return tableList.filter((table) => {
-		return table.label.toLowerCase().includes(searchQuery.value.toLowerCase())
-	})
-})
-
-const showDeleteDialog = ref(false)
-const dropdownActions = computed(() => {
-	return [
-		{
-			label: 'Sync Tables',
-			icon: 'refresh-cw',
-			onClick: syncTables,
-		},
-		{
-			label: 'Delete',
-			icon: 'trash',
-			onClick: () => (showDeleteDialog.value = true),
-		},
-	]
-})
-
-const $notify = inject('$notify')
-function syncTables() {
-	dataSource
-		.syncTables()
-		.catch((err) => $notify({ title: 'Error Syncing Tables', variant: 'error' }))
-}
-
-watchEffect(() => {
-	if (dataSource.doc?.name) {
-		const title = dataSource.doc.title || dataSource.doc.name
-		document.title = `${title} - Frappe Insights`
-	}
-})
-
-const tableListColumns = [
-	{ label: 'Table', key: 'label' },
-	{
-		label: 'Status',
-		key: 'status',
-		getLabel: ({ row }) => (row.hidden ? 'Disabled' : 'Enabled'),
-		prefix: ({ row }) => {
-			const color = row.hidden ? 'text-gray-500' : 'text-green-500'
-			return <IndicatorIcon class={color} />
-		},
-	},
-]
-</script>

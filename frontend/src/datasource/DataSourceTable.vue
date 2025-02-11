@@ -136,6 +136,7 @@
 import Grid from '@/components/Grid.vue'
 import PageBreadcrumbs from '@/components/PageBreadcrumbs.vue'
 import useDataSourceTable from '@/datasource/useDataSourceTable'
+import { useDataSourceView } from '@/datasource/useDataSourceTable'
 import { Badge, Dropdown, LoadingIndicator, createResource } from 'frappe-ui'
 import { computed, inject, nextTick, reactive, ref, watch, watchEffect } from 'vue'
 import DataSourceTableColumnHeader from './DataSourceTableColumnHeader.vue'
@@ -151,6 +152,11 @@ const props = defineProps({
 		type: String,
 		required: true,
 	},
+	type: {
+		// table type eg-> table/view
+		type: String,
+		required: true,
+	},
 })
 
 const addLinkDialog = ref(false)
@@ -159,9 +165,17 @@ const newLink = reactive({
 	primaryKey: {},
 	foreignKey: {},
 })
-
-const dataSourceTable = await useDataSourceTable({ name: props.table })
+let dataSourceTable;
+// const dataSourceTable = await useDataSourceTable({ name: props.table })
+// dataSourceTable.fetchPreview()
+if (props.type === 'table') {
+	dataSourceTable = await useDataSourceTable({ name: props.table })
+} else if (props.type === 'view') {
+	dataSourceTable = await useDataSourceView({ name: props.table })
+}
+// Fetching preview for the table or view
 dataSourceTable.fetchPreview()
+
 const hidden = computed({
 	get() {
 		return dataSourceTable.doc.hidden
@@ -172,7 +186,6 @@ const hidden = computed({
 		}
 	},
 })
-
 const getTableOptions = createResource({
 	url: 'insights.api.data_sources.get_tables',
 	params: {

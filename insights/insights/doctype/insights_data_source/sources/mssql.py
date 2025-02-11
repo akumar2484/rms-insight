@@ -4,13 +4,12 @@ from sqlalchemy import column as Column
 from sqlalchemy import inspect
 from sqlalchemy import select as Select
 from sqlalchemy import table as Table
-from sqlalchemy import text
 from sqlalchemy.engine.base import Connection
 import pyodbc
 from insights.insights.query_builders.mssql.builder import MSSQLQueryBuilder
 
 from .base_database import BaseDatabase
-from .utils import create_insights_table, get_sqlalchemy_engine
+from .utils import create_insights_table, create_insights_view, get_sqlalchemy_engine
 
 IGNORED_TABLES = ["__.*"]
 
@@ -41,6 +40,13 @@ class MSSQLTableFactory:
             # when force is true, it will overwrite the existing columns & links
             create_insights_table(table, force=force)
 
+    def sync_views(self, connection, views, force=False):
+        self.db_conn = connection
+        for view in self.get_views(view_names=views):
+            # When force is true, it will overwrite the existing columns & links
+            create_insights_view(view, force=force)
+
+
     def get_tables(self, table_names=None):
         tables = []
         for table in self.get_db_tables(table_names):
@@ -49,45 +55,61 @@ class MSSQLTableFactory:
             tables.append(table)
         return tables
 
+    def get_views(self, view_names=None):
+        views = []
+        for view in self.get_db_views(view_names):
+            view_obj = frappe._dict({
+                "view": view,
+                "label": frappe.unscrub(view),
+                "data_source": self.data_source,
+            })
+            view_obj.columns = self.get_view_columns(view_obj.view)
+            views.append(view_obj)
+        return views
+
     def get_db_tables(self, table_names=None):
         inspector = inspect(self.db_conn)
-        # NEW CODE
         # Retrieve all regular table names
         tables = set(inspector.get_table_names())
         # Retrieve foreign key information and collect foreign tables
         foreign_tables = set()
         for table in tables:
-        # Get foreign keys of the current table
+            # Get foreign keys of the current table
             foreign_keys = inspector.get_foreign_keys(table)
-        # Add the referred tables from the foreign keys
+            # Add the referred tables from the foreign keys
             for fk in foreign_keys:
                 referred_table = fk.get('referred_table')
                 if referred_table:
                     foreign_tables.add(referred_table)
         # Combine regular tables and foreign tables
         all_tables = tables | foreign_tables
-        # If specific table names are provided, filter the combined set
         if table_names:
-            all_tables = {table for table in all_tables if table in table_names}    
-        # Retrieve and return the table objects, ignoring specified tables
-        return [self.get_table(table) for table in all_tables if not self.should_ignore(table)]            
-        # OLD CODE            
-        # tables = set(inspector.get_table_names()) | set(inspector.get_foreign_table_names())
-        # if table_names:
-        #     tables = [table for table in tables if table in table_names]
-        # return [self.get_table(table) for table in tables if not self.should_ignore(table)]
+            all_tables = {table for table in all_tables if table in table_names}
+        return [self.get_table(table) for table in all_tables if not self.should_ignore(table)]
+
+    def get_db_views(self, view_names=None):
+        inspector = inspect(self.db_conn)
+        views = set(inspector.get_view_names())
+        if view_names:
+            views = {view for view in views if view in view_names}
+        return views
 
     def should_ignore(self, table_name):
         return any(re.match(pattern, table_name) for pattern in IGNORED_TABLES)
 
     def get_table(self, table_name):
-        return frappe._dict(
-            {
-                "table": table_name,
-                "label": frappe.unscrub(table_name),
-                "data_source": self.data_source,
-            }
-        )
+        return frappe._dict({
+            "table": table_name,
+            "label": frappe.unscrub(table_name),
+            "data_source": self.data_source,
+        })
+    
+    def get_view(self, view_name):
+        return frappe._dict({
+            "view": view_name,
+            "label": frappe.unscrub(view_name),
+            "data_source": self.data_source,
+        })
 
     def get_all_columns(self):
         inspector = inspect(self.db_conn)
@@ -96,39 +118,53 @@ class MSSQLTableFactory:
         for table in tables:
             columns = inspector.get_columns(table)
             for col in columns:
-                columns_by_table.setdefault(table, []).append(
-                    self.get_column(col["name"], col["type"])
-                )
+                columns_by_table.setdefault(table, []).append(self.get_column(col["name"], col["type"]))
         return columns_by_table
+
+    def get_all_view_columns(self):
+        inspector = inspect(self.db_conn)
+        views = inspector.get_view_names()
+        columns_by_view = {}
+        for view in views:
+            columns = inspector.get_columns(view)
+            for col in columns:
+                columns_by_view.setdefault(view, []).append(self.get_view_column(col["name"], col["type"]))
+        return columns_by_view
 
     def get_table_columns(self, table):
         if not hasattr(self, "_all_columns") or not self._all_columns:
             self._all_columns = self.get_all_columns()
         return self._all_columns.get(table, [])
 
+    def get_view_columns(self, view):
+        if not hasattr(self, "_all_view_columns") or not self._all_view_columns:
+         self._all_view_columns = self.get_all_view_columns()  # Fetch view columns properly
+        return self._all_view_columns.get(view, [])
+
     def get_column(self, column_name, column_type):
-        return frappe._dict(
-            {
-                "column": column_name,
-                "label": frappe.unscrub(column_name),
-                "type": MSSQL_TO_GENERIC_TYPES.get(str(column_type), "String"),
-            }
-        )
+        return frappe._dict({
+            "column": column_name,
+            "label": frappe.unscrub(column_name),
+            "type": MSSQL_TO_GENERIC_TYPES.get(str(column_type), "String"),
+        })
+
+    def get_view_column(self, column_name, column_type):
+        return frappe._dict({
+            "column": column_name,
+            "label": frappe.unscrub(column_name),
+            "type": MSSQL_TO_GENERIC_TYPES.get(str(column_type), "String"),
+        })
 
 
 class MSSQLDatabase(BaseDatabase):
     def __init__(self, **kwargs):
         connect_args = {"connect_timeout": 1}
-        
         self.data_source = kwargs.pop("data_source")
         if connection_string := kwargs.pop("connection_string", None):
-            print('In if condition')
-            print('COnnection string ', connection_string)
             self.engine = get_sqlalchemy_engine(
                 connection_string=connection_string, connect_args=connect_args
             )
         else:
-            print('In else condition')
             self.engine = get_sqlalchemy_engine(
                 dialect="mssql",
                 driver="pyodbc{ODBC Driver 17 for SQL Server}",
@@ -137,21 +173,23 @@ class MSSQLDatabase(BaseDatabase):
                 database=kwargs.pop("database_name"),
                 host=kwargs.pop("host"),
                 port=kwargs.pop("port"),
-                # extra="TrustServerCertificate=yes;DRIVER={ODBC Driver 17 for SQL Server}",
                 connect_args=connect_args,
             )
         self.query_builder: MSSQLQueryBuilder = MSSQLQueryBuilder(self.engine)
         self.table_factory: MSSQLTableFactory = MSSQLTableFactory(self.data_source)
+
     def sync_tables(self, tables=None, force=False):
         with self.engine.begin() as connection:
             self.table_factory.sync_tables(connection, tables, force)
 
+    def sync_views(self, views=None, force=False):
+        with self.engine.begin() as connection:
+            self.table_factory.sync_views(connection, views, force)
+
     def get_table_preview(self, table, limit=100):
         data = self.execute_query(f"""SELECT TOP {limit} * FROM [{table}]""", cached=True)
-        if (self.engine.url.get_backend_name() == 'mssql'):
-            length = self.execute_query(f'''SELECT COUNT(*) AS total_count FROM [{table}]''', cached=True)[0][0]
-        else:
-            length = self.execute_query(f'''SELECT COUNT(*) FROM [{table}]''', cached=True)[0][0]
+        # length = self.execute_query(f'''SELECT COUNT(*) FROM [{table}]''', cached=True)[0][0]
+        length = self.execute_query(f'SELECT COUNT(*) AS total_count FROM [{table}]', cached=True)[0][0]
         return {
             "data": data or [],
             "length": length or 0,
@@ -168,4 +206,9 @@ class MSSQLDatabase(BaseDatabase):
             query = query.where(Column(column).like(f"%{search_text}%"))
         query = self.compile_query(query)
         return self.execute_query(query, pluck=True)
+
+    def get_view_columns(self, view):
+        with self.connect() as connection:
+            self.table_factory.db_conn = connection
+            return self.table_factory.get_view_columns(view)
 

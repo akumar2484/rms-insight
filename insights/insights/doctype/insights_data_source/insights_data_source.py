@@ -74,7 +74,7 @@ class InsightsDataSourceClient:
     @frappe.whitelist()
     @redis_cache(ttl=60 * 60 * 24)
     def get_tables(self):
-        return frappe.get_list(
+        tables = frappe.get_list(
             "Insights Table",
             filters={
                 "data_source": self.name,
@@ -90,7 +90,31 @@ class InsightsDataSourceClient:
             ],
             order_by="hidden asc, label asc",
         )
+        return tables
 
+
+    @frappe.whitelist()
+    @redis_cache(ttl=60 * 60 * 24)
+    def get_views(self):
+        """Fetch views related to the data source."""
+        views = frappe.get_list(
+            "Insights View",
+            filters={
+                "data_source": self.name,
+                **get_permission_filter("Insights View"),
+            },
+            fields=[
+                "name",
+                "view",
+                "label",
+                "hidden",
+                "is_query_based",
+                "data_source",
+            ],
+            order_by="hidden asc, label asc",
+        )
+        return views
+    
     @frappe.whitelist()
     def get_queries(self):
         return frappe.get_list(
@@ -250,10 +274,11 @@ class InsightsDataSource(InsightsDataSourceDocument, InsightsDataSourceClient, D
             message="This may take a while. Please wait...",
         )
         self._db.sync_tables(tables=tables, force=force)
+        self._db.sync_views(views=tables, force=force)
         notify(
             type="success",
             title="Syncing Data Source",
-            message="Syncing completed.",
+           message="Syncing completed.",
         )
 
     def build_query(self, query: InsightsQuery):
@@ -313,4 +338,3 @@ def get_data_source_schema(data_source):
             }
         )
     return schema
-

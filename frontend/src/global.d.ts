@@ -73,6 +73,7 @@ type DocumentResource = {
 
 interface DataSourceResource extends DocumentResource {
 	get_tables: Resource
+	get_views:Resource
 	get_queries: Resource
 	enqueue_sync_tables: Resource
 	update_table_link: Resource
@@ -98,6 +99,13 @@ interface DataSourceTableOption extends DropdownOption {
 }
 
 interface DataSourceTableListItem {
+	table: string
+	label: string
+	hidden: boolean
+	is_query_based: boolean
+}
+
+interface DataSourceViewListItem {
 	table: string
 	label: string
 	hidden: boolean

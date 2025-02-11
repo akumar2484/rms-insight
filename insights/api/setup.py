@@ -122,3 +122,4 @@ def complete_setup():
     settings.setup_complete = 1
     settings.save()
     track("setup_complete")
+

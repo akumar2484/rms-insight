@@ -31,6 +31,16 @@ function useDataSource(name: string) {
 		return tableList.value
 	}
 
+	async function fetchViews() {
+		const promises = [resource.get_views.submit()]
+		const responses = await Promise.all(promises)
+		tableList.value = responses[0]
+		// queryList.value = responses[1]
+		dropdownOptions.value = makeDropdownOptions()
+		groupedTableOptions.value = makeGroupedTableOptions()
+		return tableList.value
+	}
+
 	function makeDropdownOptions() {
 		return (
 			tableList.value
@@ -102,6 +112,7 @@ function useDataSource(name: string) {
 		groupedTableOptions,
 		loading: resource.loading,
 		fetchTables,
+		fetchViews,
 		updateTableRelationship,
 		deleteTableRelationship,
 		syncTables: () => resource.enqueue_sync_tables.submit(),
@@ -128,6 +139,7 @@ export type DataSource = UnwrapRef<{
 	groupedTableOptions: DataSourceTableGroupedOption[]
 	loading: boolean
 	fetchTables: () => Promise<DataSourceTableListItem[]>
+	fetchViews: () => Promise<DataSourceViewListItem[]>
 	updateTableRelationship: (tableRelationship: TableRelationship) => Promise<any>
 	deleteTableRelationship: (tableRelationship: TableRelationship) => Promise<any>
 	syncTables: () => Promise<any>
