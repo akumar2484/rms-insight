@@ -50,6 +50,11 @@
 					onClick: query.downloadResults,
 				},
 				{
+					label: 'Download Pdf',
+					icon: 'download',
+					onClick: query.downloadPdf,
+				},
+				{
 					label: query.doc.is_assisted_query
 						? 'Switch to Classic Query Builder'
 						: 'Switch to Visual Query Builder',

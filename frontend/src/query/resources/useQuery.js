@@ -1,7 +1,7 @@
 import { useQueryResource } from '@/query/useQueryResource'
 import sessionStore from '@/stores/sessionStore'
 import settingsStore from '@/stores/settingsStore'
-import { areDeeplyEqual, createTaskRunner } from '@/utils'
+import { areDeeplyEqual, createTaskRunner, run_doc_method } from '@/utils'
 import { useQueryColumns } from '@/utils/query/columns'
 import { useQueryFilters } from '@/utils/query/filters'
 import { useQueryTables } from '@/utils/query/tables'
@@ -11,7 +11,7 @@ import { debounce } from 'frappe-ui'
 import { computed, reactive } from 'vue'
 import useQueryChart from './useQueryChart'
 import useQueryResults from './useQueryResults'
-
+import { call } from 'frappe-ui'
 const session = sessionStore()
 
 export default function useQuery(name) {
@@ -218,6 +218,18 @@ export default function useQuery(name) {
 		document.body.appendChild(a)
 		a.click()
 		document.body.removeChild(a)
+	}
+
+	state.downloadPdf = async () => {
+		const response = await run_doc_method('download_pdf', state.doc,{result:state.results.formattedResults})
+		const byteArray = new Uint8Array(response.message)
+		let blob = new Blob([byteArray], { type: 'application/pdf' })
+		let link = document.createElement('a')
+		link.href = window.URL.createObjectURL(blob)
+		link.download = 'output.pdf'
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
 	}
 
 	return state

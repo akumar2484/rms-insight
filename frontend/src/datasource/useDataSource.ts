@@ -17,9 +17,11 @@ function useDataSource(name: string) {
 	})
 
 	const tableList = ref<DataSourceTableListItem[]>([])
+	const viewList = ref<DataSourceViewListItem[]>([])
 	const queryList = ref<QueryAsTableListItem[]>([])
 	const dropdownOptions = ref<DataSourceTableOption[]>([])
 	const groupedTableOptions = ref<DataSourceTableGroupedOption[]>([])
+	const groupedViewOptions = ref<DataSourceViewGroupedOption[]>([])
 
 	async function fetchTables() {
 		const promises = [resource.get_tables.submit(), resource.get_queries.submit()]
@@ -34,11 +36,10 @@ function useDataSource(name: string) {
 	async function fetchViews() {
 		const promises = [resource.get_views.submit()]
 		const responses = await Promise.all(promises)
-		tableList.value = responses[0]
-		// queryList.value = responses[1]
-		dropdownOptions.value = makeDropdownOptions()
-		groupedTableOptions.value = makeGroupedTableOptions()
-		return tableList.value
+		viewList.value = responses[0]
+		dropdownOptions.value = makeDropdownViewOptions()
+		groupedViewOptions.value = makeGroupedViewOptions()
+		return viewList.value
 	}
 
 	function makeDropdownOptions() {
@@ -59,6 +60,30 @@ function useDataSource(name: string) {
 						value: sourceTable.table,
 						label: sourceTable.label,
 						description: sourceTable.table,
+						data_source: name,
+					}
+				})
+		)
+	}
+
+	function makeDropdownViewOptions() {
+		return (
+			viewList.value
+				.filter((t) => !t.hidden)
+				// remove duplicates
+				.filter((sourceView, index, self) => {
+					return (
+						self.findIndex((t) => {
+							return t.view === sourceView.view
+						}) === index
+					)
+				})
+				.map((sourceTable) => {
+					return {
+						table: sourceTable.view,
+						value: sourceTable.view,
+						label: sourceTable.label,
+						description: sourceTable.view,
 						data_source: name,
 					}
 				})
@@ -92,9 +117,30 @@ function useDataSource(name: string) {
 				data_source: name,
 			})
 		})
-
 		return Object.entries(tablesByGroup).map(([group, tables]) => {
 			return { group, items: tables }
+		})
+	}
+
+	function makeGroupedViewOptions() {
+		const viewsByGroup: Record<string, DataSourceTableOption[]> = {
+			Tables: [],
+			// Queries: [],
+		}
+
+		viewList.value
+			.filter((t) => !t.hidden && !t.is_query_based)
+			.forEach((view: DataSourceViewListItem) => {
+				viewsByGroup['Tables'].push({
+					table: view.view,
+					label: view.label,
+					value: view.view,
+					description: view.view,
+					data_source: name,
+				})
+			})
+		return Object.entries(viewsByGroup).map(([group, views]) => {
+			return { group, items: views }
 		})
 	}
 
@@ -107,9 +153,11 @@ function useDataSource(name: string) {
 
 	const dataSource: DataSource = reactive({
 		doc,
+		viewList,
 		tableList,
 		dropdownOptions,
 		groupedTableOptions,
+		groupedViewOptions,
 		loading: resource.loading,
 		fetchTables,
 		fetchViews,
@@ -135,8 +183,10 @@ export default useDataSource
 export type DataSource = UnwrapRef<{
 	doc: object
 	tableList: DataSourceTableListItem[]
+	viewList:DataSourceViewListItem[]
 	dropdownOptions: DataSourceTableOption[]
 	groupedTableOptions: DataSourceTableGroupedOption[]
+	groupedViewOptions:DataSourceViewGroupedOption[]
 	loading: boolean
 	fetchTables: () => Promise<DataSourceTableListItem[]>
 	fetchViews: () => Promise<DataSourceViewListItem[]>

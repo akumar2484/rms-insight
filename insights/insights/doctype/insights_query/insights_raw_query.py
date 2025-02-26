@@ -39,6 +39,9 @@ class InsightsRawQueryController:
 
     def export_query(self):
         return {"sql": self.doc.sql}
-
+    
+    def execute_query(self,query=None):
+        return InsightsDataSource.get_doc(self.doc.data_source).execute_query(query,return_columns=True)
+    
     def import_query(self, exported_query):
         self.doc.sql = exported_query.get("sql")

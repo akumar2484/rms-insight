@@ -87,6 +87,15 @@ interface TableResource extends DocumentResource {
 	update_column_type: Resource
 }
 
+interface ViewResource extends DocumentResource {
+	updateVisibility: Resource
+	getPreview: Resource
+	syncTable: Resource
+	update_column_type: Resource
+	getPreviewWithFilter:Resource
+
+}
+
 type DropdownOption = {
 	label: string
 	value: string
@@ -94,6 +103,11 @@ type DropdownOption = {
 }
 
 interface DataSourceTableOption extends DropdownOption {
+	data_source: string
+	table: string
+}
+
+interface DataSourceViewsOption extends DropdownOption {
 	data_source: string
 	table: string
 }
@@ -106,7 +120,7 @@ interface DataSourceTableListItem {
 }
 
 interface DataSourceViewListItem {
-	table: string
+	view: string
 	label: string
 	hidden: boolean
 	is_query_based: boolean
@@ -119,6 +133,10 @@ type GroupedDropdownOption = {
 
 interface DataSourceTableGroupedOption extends GroupedDropdownOption {
 	items: DataSourceTableOption[]
+}
+
+interface DataSourceViewGroupedOption extends GroupedDropdownOption {
+	items: DataSourceViewsOption[]
 }
 
 interface QueryAsTableListItem {

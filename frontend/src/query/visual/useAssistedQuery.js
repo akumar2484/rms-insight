@@ -19,6 +19,7 @@ import {
 
 export default function useAssistedQuery(query) {
 	const state = reactive({
+		type: '',
 		data_source: computed(() => query.doc.data_source),
 		table: {},
 		joins: [],
@@ -53,6 +54,8 @@ export default function useAssistedQuery(query) {
 		fetchColumnOptions: debounce(fetchColumnOptions, 500),
 	})
 
+	const currentType = computed(() => state.type);
+
 	onMounted(() => {
 		const queryJSON = sanitizeQueryJSON(query.doc.json)
 		state.table = queryJSON.table
@@ -83,7 +86,9 @@ export default function useAssistedQuery(query) {
 		(newQuery, oldQuery) => {
 			const tablesChanged = hasTablesChanged(newQuery, oldQuery)
 			query.updateQuery(newQuery).then(({ query_updated }) => {
-				query_updated && tablesChanged && fetchColumnOptions()
+				if (query_updated && tablesChanged) {
+					fetchColumnOptions();
+				}
 			})
 		},
 		{ deep: true, debounce: 500 }
@@ -92,9 +97,15 @@ export default function useAssistedQuery(query) {
 	async function fetchColumnOptions(search_txt = '') {
 		if (!state.data_source) return
 		const search_txt_lower = search_txt.toLowerCase()
-		const res = await run_doc_method('fetch_related_tables_columns', query.doc, {
+		const args = {
 			search_txt: search_txt_lower,
-		})
+		}
+		let res
+		if (state.type === 'view') {
+			res = await run_doc_method('fetch_related_views_columns', query.doc, args)
+		} else {
+			res = await run_doc_method('fetch_related_tables_columns', query.doc, args)
+		}
 		state.columnOptions = res.message.map(makeColumnOption)
 		state.groupedColumnOptions = makeGroupedColumnOptions(res.message)
 	}
@@ -104,7 +115,8 @@ export default function useAssistedQuery(query) {
 		return query.changeDataSource(dataSource)
 	}
 
-	async function addTable(newTable) {
+	async function addTable(newTable,type) {
+		state.type = type
 		if (!newTable?.table) return
 		if (newTable.table === query.doc.name) {
 			return createToast(ERROR_CANNOT_ADD_SELF_AS_TABLE())
@@ -115,16 +127,18 @@ export default function useAssistedQuery(query) {
 			return
 		}
 		if (isTableAlreadyAdded(state, newTable)) return
-		const join = await inferJoinForTable(newTable, state)
+		const join = await inferJoinForTable(newTable, state, state.type)
 		if (join) {
-			return state.joins.push(join)
+			state.joins = [...state.joins, join]; 
+			return
+		}else{
+			// createToast(WARN_UNABLE_TO_INFER_JOIN(mainTable.label, newTable.label))
+			state.joins = [...state.joins, {
+				...NEW_JOIN,
+				left_table: { table: mainTable.table, label: mainTable.label },
+				right_table: { table: newTable.table, label: newTable.label },
+			}];
 		}
-		createToast(WARN_UNABLE_TO_INFER_JOIN(mainTable.label, newTable.label))
-		state.joins.push({
-			...NEW_JOIN,
-			left_table: { table: mainTable.table, label: mainTable.label },
-			right_table: { table: newTable.table, label: newTable.label },
-		})
 	}
 
 	function resetMainTable() {
@@ -146,7 +160,9 @@ export default function useAssistedQuery(query) {
 	function addColumns(addedColumns) {
 		const newColumns = addedColumns.map(makeNewColumn)
 		state.columns.push(...newColumns)
-		state.joinAssistEnabled && inferJoins()
+		if(state?.type !=="view"){
+			state.joinAssistEnabled && inferJoins()
+		}
 	}
 
 	function removeColumnAt(removedColumnIdx) {
@@ -155,7 +171,9 @@ export default function useAssistedQuery(query) {
 
 	function updateColumnAt(updatedColumnIdx, newColumn) {
 		state.columns.splice(updatedColumnIdx, 1, newColumn)
-		state.joinAssistEnabled && inferJoins()
+		if(state?.type !=="view"){
+			state.joinAssistEnabled && inferJoins()
+		}
 	}
 
 	function moveColumn(oldIndex, newIndex) {
@@ -170,7 +188,9 @@ export default function useAssistedQuery(query) {
 	}
 	function updateFilterAt(updatedFilterIdx, newFilter) {
 		state.filters.splice(updatedFilterIdx, 1, newFilter)
-		state.joinAssistEnabled && inferJoins()
+		if(state?.type !=="view"){
+			state.joinAssistEnabled && inferJoins()
+		}
 	}
 
 	function setOrderBy(column, order) {

@@ -3,6 +3,7 @@ import Code from '@/components/Controls/Code.vue'
 import { call } from 'frappe-ui'
 import { computed, inject, ref, watch } from 'vue'
 import SchemaExplorerDialog from './SchemaExplorerDialog.vue'
+import ViewSchemaExplorerDialog from './ViewSchemaExplorerDialog.vue'
 
 const props = defineProps({
 	showToolbar: { type: Boolean, default: true },
@@ -41,6 +42,7 @@ const completions = computed(() => {
 })
 
 const showDataExplorer = ref(false)
+const showViewDataExplorer = ref(false)
 const nativeQuery = ref(query.doc.sql)
 watch(
 	() => query.doc.sql,
@@ -70,6 +72,15 @@ watch(
 			</div>
 			<div>
 				<Button
+					variant="outline"
+					iconLeft="book-open"
+					@click="showViewDataExplorer = !showViewDataExplorer"
+					label="Views"
+				>
+				</Button>
+			</div>
+			<div>
+				<Button
 					:variant="query.doc.status !== 'Execution Successful' ? 'solid' : 'outline'"
 					iconLeft="play"
 					@click="query.executeSQL(nativeQuery)"
@@ -81,4 +92,5 @@ watch(
 		</div>
 	</div>
 	<SchemaExplorerDialog v-model:show="showDataExplorer" />
+	<ViewSchemaExplorerDialog v-model:show="showViewDataExplorer" />
 </template>

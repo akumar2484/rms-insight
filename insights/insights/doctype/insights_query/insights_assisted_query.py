@@ -152,6 +152,9 @@ class InsightsAssistedQueryController:
         if additional_filters:
             query = self.apply_additional_filters(additional_filters)
         return InsightsDataSource.get_doc(self.doc.data_source).run_query(query)
+    
+    def execute_query(self, query=None):
+        return InsightsDataSource.get_doc(self.doc.data_source).execute_query(query,return_columns=True)
 
     def apply_additional_filters(self, additional_filters):
         query_json = self.query_json

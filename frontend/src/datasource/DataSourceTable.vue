@@ -1,137 +1,3 @@
-<template>
-	<div class="mt-6 flex items-stretch justify-between gap-4">
-		<div class="md:w-full">
-			<div
-				class="relative max-h-[500px] overflow-y-auto rounded-lg border border-blue-200 bg-white p-4 sm:rounded-lg"
-			>
-				<PageBreadcrumbs
-					class="h-7"
-					:items="[
-						{
-							label: 'Data Sources',
-							href: '/data-source',
-							route: { path: '/data-source' },
-						},
-						{
-							label: props.name,
-							route: { path: `/data-source/${props.name}` },
-						},
-						{
-							label: dataSourceTable.doc?.label || props.table,
-						},
-					]"
-				/>
-				<div v-if="dataSourceTable.doc" class="ml-2 flex items-center space-x-2.5">
-					<Badge variant="subtle" :theme="hidden ? 'gray' : 'green'" size="md">
-						{{ hidden ? 'Disabled' : 'Enabled' }}
-					</Badge>
-					<Dropdown
-						placement="left"
-						:button="{
-							icon: 'more-horizontal',
-							variant: 'ghost',
-						}"
-						:options="[
-							{
-								label: hidden ? 'Enable' : 'Disable',
-								icon: hidden ? 'eye' : 'eye-off',
-								onClick: () => (hidden = !hidden),
-							},
-							{
-								label: 'Sync Table',
-								icon: 'refresh-cw',
-								onClick: () => dataSourceTable.sync(),
-							},
-							{
-								label: 'Add Link',
-								icon: 'link',
-								onClick: () => (addLinkDialog = true),
-							},
-						]"
-					/>
-				</div>
-				<div
-					v-if="
-						dataSourceTable.doc &&
-						dataSourceTable.doc.columns &&
-						dataSourceTable.rows?.data &&
-						!dataSourceTable.syncing
-					"
-					class="flex flex-1 flex-col overflow-hidden"
-				>
-					<!-- <div class="flex h-6 flex-shrink-0 space-x-1 text-sm font-light text-gray-600">
-						{{ dataSourceTable.doc.columns.length }} Columns -
-						{{ dataSourceTable.rows.length }} Rows
-					</div> -->
-					<div class="flex flex-1 overflow-auto">
-						<Grid :header="true" :rows="dataSourceTable.rows.data">
-							<template #header>
-								<DataSourceTableColumnHeader
-									:columns="dataSourceTable.doc.columns"
-									@update-column-type="dataSourceTable.updateColumnType"
-								/>
-							</template>
-						</Grid>
-					</div>
-				</div>
-				<div
-					v-else
-					class="mt-2 flex h-full w-full flex-col items-center justify-center rounded bg-gray-50"
-				>
-					<LoadingIndicator class="mb-2 w-8 text-gray-500" />
-					<div class="text-lg text-gray-600">Syncing columns from database...</div>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<Dialog :options="{ title: 'Create a Link' }" v-model="addLinkDialog">
-		<template #body-content>
-			<div class="space-y-4">
-				<div>
-					<div class="mb-2 block text-sm leading-4 text-gray-700">Table</div>
-					<Autocomplete
-						ref="$autocomplete"
-						v-model="newLink.table"
-						:options="tableOptions"
-						placeholder="Select a table..."
-					/>
-				</div>
-				<div>
-					<div class="mb-2 block text-sm leading-4 text-gray-700">
-						Select a column from {{ dataSourceTable.doc.label }}
-					</div>
-					<Autocomplete
-						v-model="newLink.primaryKey"
-						:options="
-							dataSourceTable.doc.columns.map((c) => ({
-								label: `${c.label} (${c.type})`,
-								value: c.column,
-							}))
-						"
-					/>
-				</div>
-				<div v-if="newLink.table?.value">
-					<div class="mb-2 block text-sm leading-4 text-gray-700">
-						Select a column from {{ newLink.table.label }}
-					</div>
-					<Autocomplete v-model="newLink.foreignKey" :options="foreignKeyOptions" />
-				</div>
-			</div>
-		</template>
-		<template #actions>
-			<Button
-				variant="solid"
-				@click="createLink"
-				:loading="creatingLink"
-				:disabled="createLinkDisabled"
-			>
-				Create
-			</Button>
-		</template>
-	</Dialog>
-</template>
-
 <script setup>
 import Grid from '@/components/Grid.vue'
 import PageBreadcrumbs from '@/components/PageBreadcrumbs.vue'
@@ -158,14 +24,48 @@ const props = defineProps({
 		required: true,
 	},
 })
+let dataSourceTable
+const selectedColumn = ref('')
+const selectedColumnValue = ref('')
+// Create a ref for the timeout to clear it when the selectedColumnValue changes
+let debounceTimeout = null
+// Debounce logic for selectedColumnValue
+watch([selectedColumn, selectedColumnValue], ([newSelectedColumn, newSelectedColumnValue]) => {
+	if (debounceTimeout) clearTimeout(debounceTimeout) // Clear the previous timeout
 
+	debounceTimeout = setTimeout(async () => {
+		if (newSelectedColumn && newSelectedColumnValue) {
+			dataSourceTable = await useDataSourceView({
+				name: props.table,
+			})
+			try {
+				let response = await dataSourceTable.fetchPreviewWithFilter({
+					column: newSelectedColumn,
+					value: newSelectedColumnValue,
+				})
+			} catch (error) {
+				$notify({
+					variant: 'error',
+					title: 'Error',
+					message: error.messages?.[0] || 'An error occurred',
+				})
+			}
+		}
+	}, 300)
+})
+
+const clearFilter = async () => {
+	selectedColumnValue.value = ''
+	selectedColumn.value = ''
+	dataSourceTable = await useDataSourceView({ name: props.table })
+	dataSourceTable.fetchPreview()
+}
 const addLinkDialog = ref(false)
 const newLink = reactive({
 	table: {},
 	primaryKey: {},
 	foreignKey: {},
 })
-let dataSourceTable;
 // const dataSourceTable = await useDataSourceTable({ name: props.table })
 // dataSourceTable.fetchPreview()
 if (props.type === 'table') {
@@ -294,3 +194,190 @@ watchEffect(() => {
 	}
 })
 </script>
+
+<template>
+	<div class="mt-6 flex items-stretch justify-between gap-4">
+		<div class="md:w-full">
+			<div
+				class="relative max-h-[500px] overflow-y-auto rounded-lg border border-blue-200 bg-white p-4 sm:rounded-lg"
+			>
+				<div class="flex items-center">
+					<PageBreadcrumbs
+						class="h-7"
+						:items="[
+							{
+								label: 'Data Sources',
+								href: '/data-source',
+								route: { path: '/data-source' },
+							},
+							{
+								label: props.name,
+								route: { path: `/data-source/${props.name}` },
+							},
+							{
+								label: dataSourceTable.doc?.label || props.table,
+							},
+						]"
+					/>
+
+					<!-- Conditionally render dropdown and input if props.type === 'view' -->
+					<div v-if="props.type === 'view'" class="ml-4 flex items-center">
+						<!-- Dropdown (Select) -->
+						<div class="mr-4">
+							<select
+								v-model="selectedColumn"
+								id="dropdown"
+								class="h-7 rounded border border-gray-100 bg-gray-100 py-1.5 pl-2 pr-2 text-base text-gray-800 placeholder-gray-500 transition-colors hover:border-gray-200 hover:bg-gray-200 focus:border-gray-500 focus:bg-white focus:shadow-sm focus:ring-0 focus-visible:ring-2 focus-visible:ring-gray-400"
+								:disabled="
+									!dataSourceTable.doc &&
+									!dataSourceTable.doc.columns &&
+									!dataSourceTable.rows?.data &&
+									dataSourceTable.syncing
+								"
+							>
+								<option value="" disabled hidden>Select a column</option>
+								<option
+									v-for="option in dataSourceTable.doc.columns"
+									:key="option.column"
+									:value="option.column"
+								>
+									{{ option.label }}
+								</option>
+							</select>
+						</div>
+
+						<!-- Input Field -->
+						<div class="ml-4 flex items-center">
+							<input
+								type="text"
+								placeholder="Enter value"
+								class="h-7 w-full rounded border border-gray-100 bg-gray-100 py-1.5 pl-1 pr-2 text-base text-gray-800 placeholder-gray-500 transition-colors hover:border-gray-200 hover:bg-gray-200 focus:border-gray-500 focus:bg-white focus:shadow-sm focus:ring-0 focus-visible:ring-2 focus-visible:ring-gray-400"
+								:disabled="
+									!selectedColumn ||
+									(!dataSourceTable.doc &&
+										!dataSourceTable.doc.columns &&
+										!dataSourceTable.rows?.data &&
+										dataSourceTable.syncing)
+								"
+								v-model="selectedColumnValue"
+								:debounce="300"
+							/>
+							<Button
+								v-if="selectedColumn || selectedColumnValue"
+								variant="ghost"
+								icon="x"
+								@click="clearFilter()"
+							/>
+						</div>
+					</div>
+				</div>
+				<div v-if="dataSourceTable.doc" class="ml-2 flex items-center space-x-2.5">
+					<Badge variant="subtle" :theme="hidden ? 'gray' : 'green'" size="md">
+						{{ hidden ? 'Disabled' : 'Enabled' }}
+					</Badge>
+					<Dropdown
+						placement="left"
+						:button="{
+							icon: 'more-horizontal',
+							variant: 'ghost',
+						}"
+						:options="[
+							{
+								label: hidden ? 'Enable' : 'Disable',
+								icon: hidden ? 'eye' : 'eye-off',
+								onClick: () => (hidden = !hidden),
+							},
+							{
+								label: 'Sync Table',
+								icon: 'refresh-cw',
+								onClick: () => dataSourceTable.sync(),
+							},
+							{
+								label: 'Add Link',
+								icon: 'link',
+								onClick: () => (addLinkDialog = true),
+							},
+						]"
+					/>
+				</div>
+				<div
+					v-if="
+						dataSourceTable.doc &&
+						dataSourceTable.doc.columns &&
+						dataSourceTable.rows?.data &&
+						!dataSourceTable.syncing
+					"
+					class="flex flex-1 flex-col overflow-hidden"
+				>
+					<!-- <div class="flex h-6 flex-shrink-0 space-x-1 text-sm font-light text-gray-600">
+						{{ dataSourceTable.doc.columns.length }} Columns -
+						{{ dataSourceTable.rows.length }} Rows
+					</div> -->
+					<div class="flex flex-1 overflow-auto">
+						<Grid :header="true" :rows="dataSourceTable.rows.data">
+							<template #header>
+								<DataSourceTableColumnHeader
+									:columns="dataSourceTable.doc.columns"
+									@update-column-type="dataSourceTable.updateColumnType"
+								/>
+							</template>
+						</Grid>
+					</div>
+				</div>
+				<div
+					v-else
+					class="mt-2 flex h-full w-full flex-col items-center justify-center rounded bg-gray-50"
+				>
+					<LoadingIndicator class="mb-2 w-8 text-gray-500" />
+					<div class="text-lg text-gray-600">Syncing columns from database...</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<Dialog :options="{ title: 'Create a Link' }" v-model="addLinkDialog">
+		<template #body-content>
+			<div class="space-y-4">
+				<div>
+					<div class="mb-2 block text-sm leading-4 text-gray-700">Table</div>
+					<Autocomplete
+						ref="$autocomplete"
+						v-model="newLink.table"
+						:options="tableOptions"
+						placeholder="Select a table..."
+					/>
+				</div>
+				<div>
+					<div class="mb-2 block text-sm leading-4 text-gray-700">
+						Select a column from {{ dataSourceTable.doc.label }}
+					</div>
+					<Autocomplete
+						v-model="newLink.primaryKey"
+						:options="
+							dataSourceTable.doc.columns.map((c) => ({
+								label: `${c.label} (${c.type})`,
+								value: c.column,
+							}))
+						"
+					/>
+				</div>
+				<div v-if="newLink.table?.value">
+					<div class="mb-2 block text-sm leading-4 text-gray-700">
+						Select a column from {{ newLink.table.label }}
+					</div>
+					<Autocomplete v-model="newLink.foreignKey" :options="foreignKeyOptions" />
+				</div>
+			</div>
+		</template>
+		<template #actions>
+			<Button
+				variant="solid"
+				@click="createLink"
+				:loading="creatingLink"
+				:disabled="createLinkDisabled"
+			>
+				Create
+			</Button>
+		</template>
+	</Dialog>
+</template>

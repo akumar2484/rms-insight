@@ -183,7 +183,6 @@ class InsightsQuery(InsightsLegacyQueryClient, InsightsQueryClient, Document):
 
     def fetch_results(self, additional_filters=None):
         self.before_fetch()
-
         self._results = []
         start = time.monotonic()
         try:
@@ -212,7 +211,17 @@ class InsightsQuery(InsightsLegacyQueryClient, InsightsQueryClient, Document):
                 self.update_query_based_table()
                 self.is_stored and store_query(self, self._results)
         return self._results
-
+    
+    def execute_query(self,query=None):
+        self._res = []
+        try:
+            if query is None:
+             raise ValueError("Query cannot be None")
+            self._res = self.variant_controller.execute_query(query)
+        except Exception as e:
+            raise e
+        return self._res
+    
     def update_query_results(self, results=None):
         results = results or []
         query_result: Document = InsightsQueryResult.get_or_create_doc(query=self.name)

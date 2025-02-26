@@ -21,6 +21,7 @@ const whitelistedMethods = {
 		updateVisibility: 'update_visibility',
 		getPreview: 'get_preview',
 		update_column_type: 'update_column_type',
+		getPreviewWithFilter: 'get_preview_with_filter',
 	},
 }
 export default function getWhitelistedMethods(doctype: string) {

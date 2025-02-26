@@ -87,6 +87,9 @@ class InsightsChart(DoctypeBase):
 class InsightsTable(DoctypeBase):
     doctype = "Insights Table"
 
+class InsightsView(DoctypeBase):
+    doctype = "Insights View"
+
 
 class InsightsQuery(DoctypeBase):
     doctype = "Insights Query"

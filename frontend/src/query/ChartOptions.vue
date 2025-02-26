@@ -7,6 +7,7 @@ const query = inject('query')
 function resetOptions() {
 	query.chart.doc.options = {}
 }
+
 </script>
 
 <template>

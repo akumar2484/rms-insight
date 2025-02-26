@@ -77,31 +77,55 @@ function makeJoinFromRelation(relation) {
 }
 
 const relations_cache = {}
-async function getRelation(tableOne, tableTwo, data_source) {
+async function getRelation(tableOne, tableTwo, data_source, type = "") {
 	const cache_key = `${data_source}-${tableOne}-${tableTwo}`
 	if (relations_cache[cache_key]) {
 		return relations_cache[cache_key]
 	}
-	relations_cache[cache_key] = await call('insights.api.data_sources.get_relation', {
-		data_source: data_source,
-		table_one: tableOne,
-		table_two: tableTwo,
-	})
+	if (type === 'table') {
+		relations_cache[cache_key] = await call('insights.api.data_sources.get_relation', {
+			data_source: data_source,
+			table_one: tableOne,
+			table_two: tableTwo,
+		})
+	} else if (type === 'view') {
+		relations_cache[cache_key] = await call('insights.api.data_sources.get_view_relation', {
+			data_source: data_source,
+			table_one: tableOne,
+			table_two: tableTwo,
+		})
+	} else {
+		relations_cache[cache_key] = await call('insights.api.data_sources.get_relation', {
+			data_source: data_source,
+			table_one: tableOne,
+			table_two: tableTwo,
+		})
+	}
+	// relations_cache[cache_key] = await call('insights.api.data_sources.get_relation', {
+	// 	data_source: data_source,
+	// 	table_one: tableOne,
+	// 	table_two: tableTwo,
+	// })
 	return relations_cache[cache_key]
 }
 
-export async function inferJoinForTable(newTable, assistedQuery) {
+export async function inferJoinForTable(newTable, assistedQuery, type = None) {
 	const mainTable = assistedQuery.table
 	const data_source = assistedQuery.data_source
 	if (!mainTable.table) return null
 
-	const relation = await getRelation(mainTable.table, newTable.table, data_source)
+	const relation = await getRelation(mainTable.table, newTable.table, data_source, type)
 	if (relation) return makeJoinFromRelation(relation)
 
 	// find a relation with any other joined table
 	let relationWithJoinedTable = null
 	for (const join of assistedQuery.joins) {
-		const relation = await getRelation(join.right_table.table, newTable.table, data_source)
+		const relation = await getRelation(
+			join.right_table.table,
+			newTable.table,
+			data_source,
+			type
+		)
 		if (relation) {
 			return makeJoinFromRelation(relation)
 		}

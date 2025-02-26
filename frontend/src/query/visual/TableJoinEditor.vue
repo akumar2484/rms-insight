@@ -1,14 +1,33 @@
 <script setup>
 import useDataSource from '@/datasource/useDataSource'
-import useDataSourceTable from '@/datasource/useDataSourceTable'
+import useDataSourceTable, { useDataSourceView } from '@/datasource/useDataSourceTable'
+import { whenever } from '@vueuse/core'
 import { computed, defineProps, inject, reactive, ref, watch } from 'vue'
 
 const emit = defineEmits(['save', 'remove', 'discard'])
 const props = defineProps({ join: Object })
 
 const assistedQuery = inject('assistedQuery')
-const dataSource = useDataSource(assistedQuery.data_source)
-!dataSource.tableList.length && dataSource.fetchTables()
+const dataSource = reactive({}) // Keep it reactive
+
+whenever(
+	() => assistedQuery.data_source,
+	(newVal, oldVal) => {
+		if (!newVal || newVal === oldVal) return
+
+		const newDataSource = useDataSource(assistedQuery.data_source)
+
+		// Update reactive object properties instead of reassigning it
+		Object.assign(dataSource, newDataSource)
+
+		if (assistedQuery.type === 'table') {
+			!dataSource.tableList?.length && dataSource.fetchTables()
+		} else if (assistedQuery.type === 'view') {
+			!dataSource.viewList?.length && dataSource.fetchViews()
+		}
+	},
+	{ immediate: true }
+)
 
 const activeJoin = reactive({
 	left_table: {},
@@ -41,7 +60,14 @@ const leftTableOptions = computed(() => {
 	})
 	return options.map((o) => ({ ...o, value: o.table }))
 })
-const rightTableOptions = computed(() => dataSource?.groupedTableOptions || [])
+const rightTableOptions = computed(() => {
+  if (assistedQuery.type === 'table') {
+    return dataSource?.groupedTableOptions || [];
+  } else if (assistedQuery.type === 'view') {
+    return dataSource?.groupedViewOptions || [];
+  }
+  return [];
+});
 
 const leftColumnOptions = ref(null)
 const rightColumnOptions = ref(null)
@@ -50,11 +76,23 @@ watch(
 	async (newLeft, oldLeft) => {
 		if (!newLeft) return
 		if (newLeft === oldLeft) return
-		const leftTable = await useDataSourceTable({
-			data_source: assistedQuery.data_source,
-			table: newLeft,
-		})
-		leftColumnOptions.value = leftTable.columns.map((c) => ({
+		// const leftTable = await useDataSourceTable({
+		// 	data_source: assistedQuery.data_source,
+		// 	table: newLeft,
+		// })
+		let leftTable;
+		if (assistedQuery.type === 'table') {
+			leftTable = await useDataSourceTable({
+				data_source: assistedQuery.data_source,
+				table: newLeft,
+			})
+		} else if (assistedQuery.type === 'view') {
+			leftTable = await useDataSourceView({
+				data_source: assistedQuery.data_source,
+				table: newLeft,
+			})
+		}
+		leftColumnOptions.value = leftTable?.columns.map((c) => ({
 			column: c.column,
 			table: c.table,
 			label: c.label,
@@ -71,11 +109,23 @@ watch(
 	async (newRight, oldRight) => {
 		if (!newRight) return
 		if (newRight === oldRight) return
-		const rightTable = await useDataSourceTable({
-			data_source: assistedQuery.data_source,
-			table: newRight,
-		})
-		rightColumnOptions.value = rightTable.columns.map((c) => ({
+		// const rightTable = await useDataSourceTable({
+		// 	data_source: assistedQuery.data_source,
+		// 	table: newRight,
+		// })
+	    let rightTable;
+		if (assistedQuery.type === 'table') {
+			rightTable = await useDataSourceTable({
+				data_source: assistedQuery.data_source,
+				table: newRight,
+			})
+		} else if (assistedQuery.type === 'view') {
+			rightTable = await useDataSourceView({
+				data_source: assistedQuery.data_source,
+				table: newRight,
+			})
+		}
+		rightColumnOptions.value = rightTable?.columns.map((c) => ({
 			column: c.column,
 			table: c.table,
 			label: c.label,

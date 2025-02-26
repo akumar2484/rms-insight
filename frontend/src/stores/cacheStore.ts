@@ -1,10 +1,11 @@
 import { DataSource } from '@/datasource/useDataSource'
-import { DataSourceTable } from '@/datasource/useDataSourceTable'
+import { DataSourceTable, DataSourceView } from '@/datasource/useDataSourceTable'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 type DataSourceCache = Record<string, DataSource>
 type TableCache = Record<string, DataSourceTable>
+type ViewCache = Record<string, DataSourceView>
 
 const useCacheStore = defineStore('insights:cache', () => {
 	const dataSourceCache = ref<DataSourceCache>({})
@@ -23,11 +24,20 @@ const useCacheStore = defineStore('insights:cache', () => {
 		tableCache.value[name] = table
 	}
 
+	const viewCache = ref<ViewCache>({})
+	function getView(name: string) {
+		return viewCache.value[name]
+	}
+	function setView(name: string, view: DataSourceView) {
+		viewCache.value[name] = view
+	}
 	return {
 		getDataSource,
 		setDataSource,
 		getTable,
 		setTable,
+		getView,
+		setView
 	}
 })
 

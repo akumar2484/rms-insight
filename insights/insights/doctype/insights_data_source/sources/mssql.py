@@ -194,6 +194,13 @@ class MSSQLDatabase(BaseDatabase):
             "data": data or [],
             "length": length or 0,
         }
+    def get_table_preview_with_filter(self, table, column=None,value=None):
+        data = self.execute_query(f"SELECT * FROM [{table}] WHERE [{column}] = '{value}'", cached=True)
+        length = self.execute_query(f"SELECT COUNT(*) AS total_count FROM [{table}] WHERE [{column}] = '{value}'", cached=True)[0][0]
+        return {
+            "data": data or [],
+            "length": length or 0,
+        }
 
     def get_table_columns(self, table):
         with self.connect() as connection:

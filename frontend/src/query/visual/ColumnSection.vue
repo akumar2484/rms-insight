@@ -1,16 +1,40 @@
 <script setup>
 import DraggableList from '@/components/DraggableList.vue'
 import { Combine } from 'lucide-vue-next'
-import { computed, inject, nextTick, ref } from 'vue'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import ColumnExpressionEditor from './ColumnExpressionEditor.vue'
 import ColumnListItem from './ColumnListItem.vue'
 import SectionHeader from './SectionHeader.vue'
 import SimpleColumnEditor from './SimpleColumnEditor.vue'
 import { NEW_COLUMN } from './constants'
+import useDataSource from '@/datasource/useDataSource'
 
 const query = inject('query')
 const assistedQuery = inject('assistedQuery')
-!assistedQuery.columnOptions.length && assistedQuery.fetchColumnOptions()
+// !assistedQuery.columnOptions.length && assistedQuery.fetchColumnOptions()
+const dataSource = assistedQuery.data_source ? useDataSource(assistedQuery.data_source) : null
+if (dataSource) {
+	watch(
+		() => [dataSource.viewList, dataSource.tableList],
+		([newViewList, newTableList]) => {
+			// Check if tableName exists in newViewList
+			const isInViewList = newViewList.some((view) => view.view === assistedQuery.table.table)
+
+			// Check if tableName exists in newTableList
+			const isInTableList = newTableList.some(
+				(table) => table.table === assistedQuery.table.table
+			)
+
+			if (isInViewList) {
+				assistedQuery.type = 'view'
+				!assistedQuery.columnOptions.length && assistedQuery.fetchColumnOptions()
+			} else if (isInTableList) {
+				assistedQuery.type = 'table'
+				!assistedQuery.columnOptions.length && assistedQuery.fetchColumnOptions()
+			}
+		}
+	)
+}
 
 const columns = computed({
 	get: () => assistedQuery.columns,

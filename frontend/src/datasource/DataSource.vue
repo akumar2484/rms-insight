@@ -46,6 +46,15 @@ const filteredTableList = computed(() => {
 	})
 })
 
+const filteredViewList = computed(() => {
+	const viewList = dataSource.viewList.filter((t) => !t.is_query_based)
+	if (!viewList.length) return []
+	if (!searchQuery.value) return viewList
+	return viewList.filter((view) => {
+		return view.label.toLowerCase().includes(searchQuery.value.toLowerCase())
+	})
+})
+
 const showDeleteDialog = ref(false)
 const dropdownActions = computed(() => {
 	return [
@@ -149,7 +158,7 @@ const tableListColumns = [
 			>
 				<ListView
 					:columns="tableListColumns"
-					:rows="filteredTableList"
+					:rows="selectedOption === 'tables' ? filteredTableList : filteredViewList"
 					:row-key="'name'"
 					:options="{
 						showTooltip: false,
@@ -166,8 +175,11 @@ const tableListColumns = [
 							}
 						},
 						emptyState: {
-							title: 'No tables.',
-							description: 'No tables to display.',
+							title: selectedOption === 'tables' ? 'No tables.' : 'No views.',
+							description:
+								selectedOption === 'tables'
+									? 'No tables to display.'
+									: 'No views to display.',
 							button: {
 								label: 'Sync Tables/Views',
 								variant: 'solid',

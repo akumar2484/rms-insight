@@ -143,7 +143,7 @@ export default {
 			document.addEventListener('click', this.listener)
 		}
 		this.$nextTick(() => {
-			this.targetWidth = this.$refs['target'].clientWidth
+			this.targetWidth = this.$refs['target']?.clientWidth
 		})
 	},
 	beforeDestroy() {

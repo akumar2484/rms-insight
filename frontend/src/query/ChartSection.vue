@@ -8,7 +8,6 @@ import ChartTypeSelector from './ChartTypeSelector.vue'
 
 const query = inject('query')
 const chartRef = ref(null)
-
 const showChart = computed(() => {
 	return (
 		query.chart.doc?.name &&

@@ -11,6 +11,7 @@ import ResultColumnActions from './ResultColumnActions.vue'
 import ResultFooter from './ResultFooter.vue'
 import SourceSection from './SourceSection.vue'
 import TableSection from './TableSection.vue'
+import ViewSection from './ViewSection.vue'
 import TransformSection from './TransformSection.vue'
 import useAssistedQuery from './useAssistedQuery'
 
@@ -22,6 +23,10 @@ const assistedQuery = useAssistedQuery(query)
 provide('assistedQuery', assistedQuery)
 
 const hideChart = ref(false)
+
+const toggleChart = () => {
+  hideChart.value = !hideChart.value;
+};
 </script>
 
 <template>
@@ -59,6 +64,8 @@ const hideChart = ref(false)
 					<SourceSection></SourceSection>
 					<hr class="border-gray-200" />
 					<TableSection></TableSection>
+					<hr class="border-gray-200" />
+					<ViewSection></ViewSection>
 					<hr class="border-gray-200" />
 					<FilterSection></FilterSection>
 					<hr class="border-gray-200" />

@@ -64,6 +64,9 @@ class Database:
 
     def get_table_preview(self):
         raise NotImplementedError
+    
+    def get_table_preview_with_filter(self):
+        raise NotImplementedError
 
     def table_exists(self, table: str):
         """
@@ -124,7 +127,6 @@ class BaseDatabase(Database):
             return []
         if isinstance(sql, str) and not sql.strip():
             return []
-
         sql = self.compile_query(sql)
         sql = self.process_subquery(sql)
         sql = self.set_row_limit(sql)

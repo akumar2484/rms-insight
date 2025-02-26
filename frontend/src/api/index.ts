@@ -52,3 +52,10 @@ export const fetchTableName = async (data_source: string, table: string) => {
 		table: table,
 	})
 }
+
+export const fetchViewName = async (data_source: string, view: string) => {
+	return call('insights.api.data_sources.get_view_name', {
+		data_source: data_source,
+		view: view,
+	})
+}

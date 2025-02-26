@@ -22,22 +22,22 @@ whenever(
 		if (!newVal) return
 		if (newVal == oldVal) return
 		dataSource = useDataSource(assistedQuery.data_source)
-		dataSource.fetchTables()
+		dataSource.fetchViews()
 	},
 	{ immediate: true }
 )
-const isHideTable = ref(false)
+const isHideView = ref(false)
 
 watchEffect(() => {
 	if (!assistedQuery.table?.table) {
-		// If there is no table, always show
-		isHideTable.value = true
-	} else if (dataSource.tableList?.length) {
+		// If there is no view, always show
+		isHideView.value = true
+	} else if (dataSource.viewList?.length) {
 		// If tableList exists, check if the table is present
-		isHideTable.value = dataSource.tableList.some(t => t.table === assistedQuery.table.table)
+		isHideView.value = dataSource.viewList.some(v => v.view === assistedQuery.table.table)
 	} else {
 		// Hide until data loads
-		isHideTable.value = false
+		isHideView.value = false
 	}
 })
 const joins = computed(() => assistedQuery.joins)
@@ -63,16 +63,16 @@ function onTableLinkClick(table) {
 </script>
 
 <template>
-	<div v-if="isHideTable" :key="assistedQuery.data_source" class="space-y-2">
+	<div v-if="isHideView" :key="assistedQuery.data_source" class="space-y-2">
 		<SectionHeader
 			:icon="Sheet"
-			title="Tables"
-			info="Select the tables you want to extract data from."
+			title="Views"
+			info="Select the view you want to extract data from."
 		>
 			<Autocomplete
 				bodyClasses="w-[18rem]"
-				:options="dataSource.groupedTableOptions"
-				@update:modelValue="$event && assistedQuery.addTable($event,'table')"
+				:options="dataSource.groupedViewOptions"
+				@update:modelValue="$event && assistedQuery.addTable($event,'view')"
 			>
 				<template #target="{ togglePopover }">
 					<Button variant="outline" icon="plus" @click="togglePopover"></Button>

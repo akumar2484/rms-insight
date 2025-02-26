@@ -1,13 +1,19 @@
-import { fetchTableName, getDocumentResource } from '@/api'
+import { fetchTableName, fetchViewName, getDocumentResource } from '@/api'
 import useCacheStore from '@/stores/cacheStore'
-import { whenHasValue } from '@/utils'
+import { run_doc_method, whenHasValue } from '@/utils'
 import { useStorage } from '@vueuse/core'
-import { UnwrapRef, computed, reactive } from 'vue'
+import { UnwrapRef, computed, reactive, ref, watch } from 'vue'
 
 export type GetTableParams = {
 	name: string
 	table: string
 	data_source: string
+}
+export type GetViewParams = {
+	name: string
+	table: string
+	data_source: string
+	condition?: any
 }
 
 async function useDataSourceTable(params: GetTableParams) {
@@ -64,15 +70,13 @@ async function useDataSourceTable(params: GetTableParams) {
 	return table
 }
 
-export async function useDataSourceView(params: GetTableParams) {
-	const name = await getTableName(params)
-
+export async function useDataSourceView(params: GetViewParams):Promise<DataSourceView>{
+	const name = await getViewName(params)
 	const cacheStore = useCacheStore()
-	if (cacheStore.getTable(name)) {
-		return cacheStore.getTable(name)
+	if (cacheStore.getView(name)) {
+		return cacheStore.getView(name)
 	}
-
-	const resource: TableResource = getDocumentResource('Insights View', name)
+	const resource: ViewResource = getDocumentResource('Insights View', name)
 	await resource.fetchIfNeeded()
 	await whenHasValue(() => resource.doc)
 
@@ -88,17 +92,35 @@ export async function useDataSourceView(params: GetTableParams) {
 				column: column.column,
 				type: column.type,
 				label: column.label,
-				table: doc.value.table,
+				table: doc.value.view,
 				table_label: doc.value.label,
 				data_source: doc.value.data_source,
 			}
 		})
 	})
-
-	const table: DataSourceTable = reactive({
+	// Store rows dynamically
+	const rowsData = ref<any>(resource.getPreview.data)
+	// Watch for changes in resource.getPreview.data and update rowsData
+	watch(
+		() => resource.getPreview.data,
+		(newData) => {
+			rowsData.value = newData || []
+		},
+		{ deep: true, immediate: true }
+	)
+	async function fetchPreviewWithFilter(condition: any) {
+		const res = await run_doc_method('fetch_preview_with_filter', resource.doc, condition)
+		if (res) {
+			rowsData.value = res.message // Assign filtered data if available
+		} else {
+			rowsData.value = [] // Default to empty array if null
+		}
+		return res
+	}
+	const table: DataSourceView = reactive({
 		doc,
 		columns,
-		rows: computed(() => resource.getPreview.data),
+		rows: computed(() => rowsData.value),
 		loading: resource.loading,
 		syncing: resource.syncTable.loading,
 		sync: () => resource.syncTable.submit(),
@@ -112,9 +134,10 @@ export async function useDataSourceView(params: GetTableParams) {
 				newtype: column.type,
 			})
 		},
+		fetchPreviewWithFilter: (conditon: any) => fetchPreviewWithFilter(conditon),
 	})
 
-	cacheStore.setTable(name, table)
+	cacheStore.setView(name, table)
 	return table
 }
 
@@ -144,6 +167,20 @@ async function getTableName(params: GetTableParams): Promise<string> {
 	return _name
 }
 
+async function getViewName(params: GetTableParams): Promise<string> {
+	const { name, table, data_source } = params
+	if (name) return name
+
+	const key = `${data_source}:${table}`
+	if (tableNameCache.value[key]) {
+		return tableNameCache.value[key]
+	}
+
+	const _name = await fetchViewName(data_source, table)
+	tableNameCache.value[key] = _name
+	return _name
+}
+
 export default useDataSourceTable
 
 export type DataSourceTable = UnwrapRef<{
@@ -156,4 +193,17 @@ export type DataSourceTable = UnwrapRef<{
 	fetchPreview: () => Promise<any>
 	updateColumnType: (column: any) => Promise<any>
 	updateVisibility: (hidden: boolean) => Promise<any>
+}>
+
+export type DataSourceView = UnwrapRef<{
+	doc: any
+	columns: any[]
+	rows: any[]
+	loading: boolean
+	syncing: boolean
+	sync: () => Promise<any>
+	fetchPreview: () => Promise<any>
+	updateColumnType: (column: any) => Promise<any>
+	updateVisibility: (hidden: boolean) => Promise<any>
+	fetchPreviewWithFilter: (condition: any) => Promise<any>
 }>

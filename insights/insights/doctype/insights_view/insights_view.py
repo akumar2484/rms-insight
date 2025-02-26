@@ -29,6 +29,14 @@ class InsightsView(Document):
             return []
         data_source = frappe.get_doc("Insights Data Source", self.data_source)
         return data_source.get_table_preview(self.view)
+    
+    @frappe.whitelist()
+    def fetch_preview_with_filter(self,column=None,value=None):
+        """Preview the first rows of the table data"""
+        if self.is_query_based:
+            return []
+        data_source = frappe.get_doc("Insights Data Source", self.data_source)
+        return data_source.get_table_preview_with_filter(self.view,column,value)
 
     def get_columns(self):
         """Fetch and return the columns for this insights view"""

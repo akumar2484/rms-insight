@@ -301,6 +301,9 @@ class InsightsDataSource(InsightsDataSourceDocument, InsightsDataSourceClient, D
         return self._db.get_table_preview(table, limit)
 
 
+    def get_table_preview_with_filter(self,table,column=None,value=None):
+        return self._db.get_table_preview_with_filter(table, column,value)
+
 @site_cache(maxsize=128)
 def get_data_source_schema(data_source):
     Table = frappe.qb.DocType("Insights Table")

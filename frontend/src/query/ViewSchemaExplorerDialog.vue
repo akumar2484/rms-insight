@@ -1,6 +1,6 @@
 <script setup>
 import useDataSource from '@/datasource/useDataSource'
-import useDataSourceTable from '@/datasource/useDataSourceTable'
+import useDataSourceTable, { useDataSourceView } from '@/datasource/useDataSourceTable'
 import useDataSourceStore from '@/stores/dataSourceStore'
 import { computed, inject, ref, watch } from 'vue'
 
@@ -20,7 +20,7 @@ const dataSources = computed(() =>
 		}
 	})
 )
-const currentTables = ref([])
+const currentViews = ref([])
 const currentColumns = ref([])
 
 const query = inject('query')
@@ -33,21 +33,21 @@ watch(
 	},
 	{ immediate: true }
 )
-const currentTable = ref(null)
+const currentView = ref(null)
 
 watch(
 	currentDataSource,
 	() => {
 		if (!currentDataSource.value) return
-		currentTables.value = []
+		currentViews.value = []
 		currentColumns.value = []
 		const dataSource = useDataSource(currentDataSource.value.name)
-		dataSource.fetchTables().then((tables) => {
-			currentTables.value = tables.filter((t) => !t.is_query_based).map((t) => {
+		dataSource.fetchViews().then((views) => {
+			currentViews.value = views.filter((v) => !v.is_query_based).map((v) => {
 				return {
-					label: t.label,
-					table: t.table,
-					name: t.name,
+					label: v.label,
+					table: v.view,
+					name: v.name,
 				}
 			})
 		})
@@ -57,14 +57,14 @@ watch(
 
 const fetchingColumns = ref(false)
 watch(
-	currentTable,
+	currentView,
 	async () => {
-		if (!currentTable.value) return
+		if (!currentView.value) return
 		currentColumns.value = []
 		fetchingColumns.value = true
-		const table = await useDataSourceTable({ name: currentTable.value.name })
+		const view = await useDataSourceView({ name: currentView.value.name })
 		fetchingColumns.value = false
-		currentColumns.value = table.columns.map((c) => {
+		currentColumns.value = view.columns.map((c) => {
 			return {
 				label: c.label,
 				column: c.column,
@@ -82,13 +82,14 @@ function toggleDataSource(dataSource) {
 		currentDataSource.value = dataSource
 	}
 }
-function toggleTable(table) {
-	if (currentTable.value?.name == table.name) {
-		currentTable.value = null
+function toggleView(view) {
+	if (currentView.value?.name == view.name) {
+		currentView.value = null
 	} else {
-		currentTable.value = table
+		currentView.value = view
 	}
 }
+
 </script>
 <template>
 	<Dialog v-model="show" :options="{ title: 'Browse Data Sources' }">
@@ -105,7 +106,7 @@ function toggleTable(table) {
 						<div
 							class="-ml-1 flex flex-1 cursor-pointer items-center gap-2 rounded py-1 pl-1 transition-colors hover:bg-gray-100"
 							:class="
-								currentDataSource?.name == dataSource.name && !currentTable
+								currentDataSource?.name == dataSource.name && !currentView
 									? 'bg-gray-100'
 									: ''
 							"
@@ -128,25 +129,25 @@ function toggleTable(table) {
 							v-if="currentDataSource?.name == dataSource.name"
 							class="mt-1 flex flex-col gap-1"
 						>
-							<div v-for="table in currentTables" :key="table.name" class="pl-2">
+							<div v-for="view in currentViews" :key="view.name" class="pl-2">
 								<div
 									class="-ml-1 flex flex-1 cursor-pointer items-center gap-2 rounded py-1 pl-1 transition-colors hover:bg-gray-100"
-									:class="currentTable?.name == table.name ? 'bg-gray-100' : ''"
-									@click="toggleTable(table)"
+									:class="currentView?.name == view.name ? 'bg-gray-100' : ''"
+									@click="toggleView(view)"
 								>
 									<FeatherIcon
-										:name="currentTable?.name == table.name ? 'minus' : 'plus'"
+										:name="currentView?.name == view.name ? 'minus' : 'plus'"
 										class="h-4 w-4"
 									/>
 									<div class="flex items-center gap-2">
 										<FeatherIcon name="folder" class="h-4 w-4 text-gray-600" />
 										<p class="font-medium leading-6 text-gray-900">
-											{{ table.label }}
+											{{ view.label }}
 										</p>
 									</div>
 								</div>
 								<div
-									v-if="currentTable?.name == table.name"
+									v-if="currentView?.name == view.name"
 									class="mt-1 ml-4 mb-1 flex items-center justify-center"
 								>
 									<LoadingIndicator
