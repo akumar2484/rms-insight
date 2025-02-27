@@ -313,7 +313,7 @@ watchEffect(() => {
 						{{ dataSourceTable.doc.columns.length }} Columns -
 						{{ dataSourceTable.rows.length }} Rows
 					</div> -->
-					<div class="flex flex-1 overflow-auto">
+					<div class="flex flex-1 overflow-auto max-h-[400px]">
 						<Grid :header="true" :rows="dataSourceTable.rows.data">
 							<template #header>
 								<DataSourceTableColumnHeader
